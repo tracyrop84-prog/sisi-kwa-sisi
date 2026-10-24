@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { copyText } from "@/lib/clipboard";
 
 // Copies a ready-made WhatsApp update so organisers can paste it into a group.
 export default function CopyWhatsAppButton({ text }: { text: string }) {
@@ -13,13 +14,7 @@ export default function CopyWhatsAppButton({ text }: { text: string }) {
   }, [status]);
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setStatus("copied");
-    } catch {
-      // The Clipboard API needs HTTPS; fall back for older phones and http:// testing.
-      setStatus(copyWithTextarea(text) ? "copied" : "failed");
-    }
+    setStatus((await copyText(text)) ? "copied" : "failed");
   }
 
   return (
@@ -39,19 +34,3 @@ export default function CopyWhatsAppButton({ text }: { text: string }) {
   );
 }
 
-function copyWithTextarea(text: string): boolean {
-  const el = document.createElement("textarea");
-  el.value = text;
-  el.setAttribute("readonly", "");
-  el.style.position = "fixed";
-  el.style.opacity = "0";
-  document.body.appendChild(el);
-  el.select();
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    el.remove();
-  }
-}

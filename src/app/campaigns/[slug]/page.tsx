@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ChallengeLeaderboard from "@/components/ChallengeLeaderboard";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
@@ -38,16 +39,23 @@ export default async function CampaignPage({ params, searchParams }: Props) {
   const campaign = await getCampaign((await params).slug);
   if (!campaign) notFound();
 
-  const [donations, url, user, { thanks, challenge }] = await Promise.all([
+  const [donations, url, user, challenges, { thanks, challenge }] = await Promise.all([
     getDonations(campaign.id),
     siteUrl(`/campaigns/${campaign.slug}`),
     getCurrentUser(),
+    getCampaignChallenges(campaign.id),
     searchParams,
   ]);
 
   const now = Date.now();
   const isOrganiser = !!user && campaign.organiserId === user.id;
-  const challenges = user ? await getCampaignChallenges(campaign.id) : [];
+  const liveChallenges = challenges
+    .filter((c) => challengeState(c, now) === "live")
+    .sort((a, b) => b.raised - a.raised);
+  const pastChallenges = challenges
+    .filter((c) => challengeState(c, now) === "ended")
+    .sort((a, b) => b.endsAt!.localeCompare(a.endsAt!))
+    .slice(0, 10);
   const pendingChallenges = isOrganiser
     ? challenges.filter((c) => challengeState(c, now) === "pending").length
     : 0;
@@ -175,6 +183,16 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               </Link>
             )}
           </div>
+        )}
+
+        {(liveChallenges.length > 0 || pastChallenges.length > 0) && (
+          <section className="mt-6">
+            <h2 className="text-lg font-bold">
+              Live challenges{" "}
+              <span className="font-medium text-muted">({liveChallenges.length})</span>
+            </h2>
+            <ChallengeLeaderboard live={liveChallenges} past={pastChallenges} now={now} />
+          </section>
         )}
 
         <section className="mt-6">
