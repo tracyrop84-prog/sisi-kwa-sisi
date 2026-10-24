@@ -6,20 +6,39 @@ import { donateAction, type DonateState } from "./actions";
 
 const initialState: DonateState = { errors: {}, values: {} };
 
-const QUICK_AMOUNTS = [200, 500, 1000, 2000];
+const DEFAULT_QUICK_AMOUNTS = [200, 500, 1000, 2000];
 
 const inputClass =
   "mt-1 block w-full rounded-xl border border-black/15 bg-surface px-4 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:bg-black/5 disabled:text-muted";
 
-type Props = { slug: string; maxMessage: number; maxName: number };
+type Props = {
+  slug: string;
+  maxMessage: number;
+  maxName: number;
+  // Challenge donations only:
+  challengeSlug?: string;
+  initialAmount?: number; // e.g. 100 for a KSh 100 Challenge
+  quickAmounts?: number[];
+  submitLabel?: string; // e.g. "Sindikiza Tracy"
+  submitHint?: string; // smaller line inside the button, e.g. "Give with M-Pesa"
+};
 
-export default function DonateForm({ slug, maxMessage, maxName }: Props) {
+export default function DonateForm({
+  slug,
+  maxMessage,
+  maxName,
+  challengeSlug,
+  initialAmount,
+  quickAmounts = DEFAULT_QUICK_AMOUNTS,
+  submitLabel = "Donate",
+  submitHint,
+}: Props) {
   const [state, formAction, pending] = useActionState(donateAction, initialState);
   const { errors, values, formError } = state;
   const hasErrors = Object.keys(errors).length > 0;
 
   // Controlled so quick-amount buttons can fill it, and so it survives a failed submit.
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount ? String(initialAmount) : "");
   const [anonymous, setAnonymous] = useState(false);
 
   const field = (name: keyof DonateState["errors"]) => ({
@@ -33,13 +52,14 @@ export default function DonateForm({ slug, maxMessage, maxName }: Props) {
     // key resets defaultValues after a failed submit so the user's input is kept
     <form action={formAction} key={JSON.stringify(values)} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="slug" value={slug} />
+      {challengeSlug && <input type="hidden" name="challenge" value={challengeSlug} />}
       {formError && <ErrorMessage>{formError}</ErrorMessage>}
       {hasErrors && <ErrorMessage>Please fix the highlighted fields below.</ErrorMessage>}
 
       <div>
         <label htmlFor="amount" className="font-semibold">Amount (KES)</label>
         <div className="mt-2 grid grid-cols-4 gap-2">
-          {QUICK_AMOUNTS.map((a) => {
+          {quickAmounts.map((a) => {
             const selected = amount === String(a);
             return (
               <button
@@ -117,7 +137,10 @@ export default function DonateForm({ slug, maxMessage, maxName }: Props) {
           disabled={pending}
           className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-bold text-white active:scale-[0.99] disabled:opacity-70"
         >
-          {pending ? "Donating…" : "Donate"}
+          {pending ? "Donating…" : submitLabel}
+          {submitHint && !pending && (
+            <span className="block text-xs font-semibold opacity-90">{submitHint}</span>
+          )}
         </button>
         <p className="mt-2 text-center text-xs text-muted">
           Test mode: no money is charged. M-Pesa is coming soon.
