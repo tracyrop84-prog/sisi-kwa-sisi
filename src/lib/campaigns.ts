@@ -1,8 +1,7 @@
 import "server-only";
-import { promises as fs } from "fs";
-import path from "path";
+import { createClient } from "@/lib/supabase/server";
 
-// Sample data lives in data/campaigns.json until we move to Supabase.
+// Campaigns live in the Supabase "campaigns" table (see supabase/campaigns.sql).
 // Everything that reads or writes campaigns goes through this file.
 
 export const CATEGORIES = [
@@ -30,19 +29,46 @@ export type Campaign = {
   createdAt: string;
 };
 
-const DATA_FILE = path.join(process.cwd(), "data", "campaigns.json");
+const COLUMNS =
+  "slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, created_at";
 
-async function readAll(): Promise<Campaign[]> {
-  return JSON.parse(await fs.readFile(DATA_FILE, "utf8"));
+type Row = {
+  slug: string;
+  title: string;
+  category: Category;
+  organiser: string;
+  beneficiary: string;
+  location: string;
+  goal: number;
+  raised: number;
+  donor_count: number;
+  story: string;
+  created_at: string;
+};
+
+function fromRow({ donor_count, created_at, ...rest }: Row): Campaign {
+  return { ...rest, donorCount: donor_count, createdAt: created_at };
 }
 
 export async function getCampaigns(): Promise<Campaign[]> {
-  const campaigns = await readAll();
-  return campaigns.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select(COLUMNS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as Row[]).map(fromRow);
 }
 
 export async function getCampaign(slug: string): Promise<Campaign | undefined> {
-  return (await readAll()).find((c) => c.slug === slug);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select(COLUMNS)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? fromRow(data as Row) : undefined;
 }
 
 export type NewCampaign = Pick<
@@ -50,29 +76,42 @@ export type NewCampaign = Pick<
   "title" | "category" | "organiser" | "beneficiary" | "location" | "goal" | "story"
 >;
 
-export async function createCampaign(input: NewCampaign): Promise<Campaign> {
-  const campaigns = await readAll();
-  const campaign: Campaign = {
-    ...input,
-    slug: uniqueSlug(input.title, campaigns),
-    raised: 0,
-    donorCount: 0,
-    createdAt: new Date().toISOString(),
-  };
-  campaigns.push(campaign);
-  await fs.writeFile(DATA_FILE, JSON.stringify(campaigns, null, 2) + "\n");
-  return campaign;
+export type CreateResult = { campaign: Campaign } | { error: "not-logged-in" };
+
+export async function createCampaign(input: NewCampaign): Promise<CreateResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "not-logged-in" };
+
+  const { data, error } = await supabase
+    .from("campaigns")
+    .insert({ ...input, slug: await uniqueSlug(input.title), organiser_id: user.id })
+    .select(COLUMNS)
+    .single();
+  if (error) throw error;
+  return { campaign: fromRow(data as Row) };
 }
 
-function uniqueSlug(title: string, existing: Campaign[]): string {
+async function uniqueSlug(title: string): Promise<string> {
   const base =
     title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 60) || "harambee";
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("slug")
+    .like("slug", `${base}%`);
+  if (error) throw error;
+  const taken = new Set(data.map((r) => r.slug));
+
   let slug = base;
-  for (let n = 2; existing.some((c) => c.slug === slug); n++) {
+  for (let n = 2; taken.has(slug); n++) {
     slug = `${base}-${n}`;
   }
   return slug;
