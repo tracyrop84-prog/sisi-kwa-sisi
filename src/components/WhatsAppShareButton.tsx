@@ -20,7 +20,7 @@ export default function WhatsAppShareButton({ text }: { text: string }) {
           fill="#25D366"
         />
       </svg>
-      Share on WhatsApp
+      Share to WhatsApp
     </a>
   );
 }
