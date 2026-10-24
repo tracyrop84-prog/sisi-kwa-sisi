@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ChallengeProgress from "@/components/ChallengeProgress";
+import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import Countdown from "@/components/Countdown";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
+import ShareButtons from "@/components/ShareButtons";
 import SiteHeader from "@/components/SiteHeader";
+import WhatsAppShareButton from "@/components/WhatsAppShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getCampaignById } from "@/lib/campaigns";
 import {
@@ -20,6 +23,8 @@ import {
 } from "@/lib/challenges";
 import { getChallengeDonations } from "@/lib/donations";
 import { formatKES } from "@/lib/format";
+import { siteUrl } from "@/lib/site";
+import { buildChallengeInvite, buildWhatsAppSummary } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -30,17 +35,29 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const challenge = await getChallenge((await params).slug);
-  return { title: challenge ? `${challengeTitle(challenge)} · Sisi kwa Sisi` : "Not found" };
+  if (!challenge) return { title: "Not found" };
+  const campaign = await getCampaignById(challenge.campaignId);
+  const title = challengeTitle(challenge);
+  const description = `Join ${challenge.hostName}’s challenge for ${campaign?.title ?? "this harambee"}. All money goes directly to the harambee.`;
+  return {
+    // Absolute base so WhatsApp and Facebook can fetch the preview image (./opengraph-image.tsx).
+    metadataBase: new URL(await siteUrl()),
+    title: `${title} · Sisi kwa Sisi`,
+    description,
+    openGraph: { title, description, url: `/c/${challenge.slug}`, siteName: "Sisi kwa Sisi", type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function ChallengePage({ params, searchParams }: Props) {
   const challenge = await getChallenge((await params).slug);
   if (!challenge) notFound();
 
-  const [campaign, donations, user, { thanks }] = await Promise.all([
+  const [campaign, donations, user, url, { thanks }] = await Promise.all([
     getCampaignById(challenge.campaignId),
     getChallengeDonations(challenge.id),
     getCurrentUser(),
+    siteUrl(`/c/${challenge.slug}`),
     searchParams,
   ]);
   if (!campaign) notFound();
@@ -53,6 +70,30 @@ export default async function ChallengePage({ params, searchParams }: Props) {
   const isMgeniRasmi = challenge.type === "mgeni_rasmi";
   const over = state === "ended" || state === "expired" || state === "declined";
   const hasStickyBar = state === "live" || over;
+
+  const invite =
+    state === "live" &&
+    buildChallengeInvite({
+      hostName: challenge.hostName,
+      campaignTitle: campaign.title,
+      mgeniRasmi: isMgeniRasmi,
+      challengeName: type.name,
+      preset: type.preset,
+      hostGift: challenge.hostGift,
+      raised: challenge.raised,
+      target: challenge.target,
+      msLeft: new Date(challenge.endsAt!).getTime() - now,
+      url,
+    });
+  // The Phase 3 update, measured against the target if there is one.
+  const whatsAppUpdate = buildWhatsAppSummary({
+    title: `${challengeTitle(challenge)} for ${campaign.title}`,
+    raised: challenge.raised,
+    goal: challenge.target,
+    donorCount: challenge.donorCount,
+    donors: donations.map((d) => ({ name: d.donorName, amount: d.amount })),
+    url,
+  });
 
   return (
     <main className={`mx-auto max-w-md px-5 ${hasStickyBar ? "pb-28" : "pb-10"}`}>
@@ -132,6 +173,13 @@ export default async function ChallengePage({ params, searchParams }: Props) {
                   campaign={campaign}
                 />
               </div>
+              {invite && (
+                <div className="mt-4 space-y-2">
+                  <WhatsAppShareButton text={invite} />
+                  <ShareButtons url={url} text={`${challengeTitle(challenge)} for ${campaign.title}`} />
+                  <CopyWhatsAppButton text={whatsAppUpdate} />
+                </div>
+              )}
             </>
           )}
 
