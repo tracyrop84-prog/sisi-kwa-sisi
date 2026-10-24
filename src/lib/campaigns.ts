@@ -16,6 +16,7 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 
 export type Campaign = {
+  id: string;
   slug: string;
   title: string;
   category: Category;
@@ -30,9 +31,10 @@ export type Campaign = {
 };
 
 const COLUMNS =
-  "slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, created_at";
+  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, created_at";
 
 type Row = {
+  id: string;
   slug: string;
   title: string;
   category: Category;
