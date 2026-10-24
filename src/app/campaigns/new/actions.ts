@@ -50,7 +50,7 @@ export async function createCampaignAction(
     goal,
   });
   if ("error" in result) {
-    return { errors: {}, values, formError: "Please log in to start a harambee." };
+    return { errors: {}, values, formError: "You’ve been logged out. Please log in again, then submit." };
   }
   redirect(`/campaigns/${result.campaign.slug}`);
 }

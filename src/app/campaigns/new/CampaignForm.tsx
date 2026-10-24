@@ -4,15 +4,16 @@ import { useActionState } from "react";
 import ErrorMessage from "@/components/ErrorMessage";
 import { createCampaignAction, type FormState } from "./actions";
 
-const initialState: FormState = { errors: {}, values: {} };
-
 const inputClass =
   "mt-1 block w-full rounded-xl border border-black/15 bg-surface px-4 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
 
-type Props = { categories: readonly string[] };
+type Props = { categories: readonly string[]; organiserName: string };
 
-export default function CampaignForm({ categories }: Props) {
-  const [state, formAction, pending] = useActionState(createCampaignAction, initialState);
+export default function CampaignForm({ categories, organiserName }: Props) {
+  const [state, formAction, pending] = useActionState(createCampaignAction, {
+    errors: {},
+    values: { organiser: organiserName },
+  });
   const { errors, values, formError } = state;
   const hasErrors = Object.keys(errors).length > 0;
 

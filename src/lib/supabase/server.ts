@@ -21,7 +21,7 @@ export async function createClient() {
       },
       setAll(cookiesToSet) {
         // Server components can't set cookies; that's fine as long as
-        // middleware refreshes sessions (added together with login).
+        // middleware refreshes sessions (see src/middleware.ts).
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {}
