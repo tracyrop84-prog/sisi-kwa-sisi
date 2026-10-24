@@ -22,6 +22,9 @@ export default function Home() {
         >
           Start a harambee
         </Link>
+        <Link href="/campaigns" className="text-center font-semibold text-accent">
+          Browse harambees
+        </Link>
       </section>
 
       <footer className="text-center text-sm text-muted">

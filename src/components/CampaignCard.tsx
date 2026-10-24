@@ -1,0 +1,24 @@
+import Link from "next/link";
+import ProgressBar from "@/components/ProgressBar";
+import type { Campaign } from "@/lib/campaigns";
+
+export default function CampaignCard({ campaign }: { campaign: Campaign }) {
+  return (
+    <Link
+      href={`/campaigns/${campaign.slug}`}
+      className="block rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5 active:scale-[0.99]"
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        {campaign.category} · {campaign.location}
+      </p>
+      <h2 className="mt-1 text-lg font-bold leading-snug">{campaign.title}</h2>
+      <div className="mt-3">
+        <ProgressBar
+          raised={campaign.raised}
+          goal={campaign.goal}
+          donorCount={campaign.donorCount}
+        />
+      </div>
+    </Link>
+  );
+}
