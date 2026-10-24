@@ -30,6 +30,8 @@ function friendlyError(code: ChallengeError): string {
   switch (code) {
     case "not-logged-in":
       return "You’ve been logged out. Please log in again, then submit.";
+    case "email-not-confirmed":
+      return "Please confirm your email first. Check your inbox for the link.";
     case "already_hosting":
       return "You already have a challenge waiting or running on this harambee. You can start another once it ends.";
     case "mgeni_rasmi_taken":

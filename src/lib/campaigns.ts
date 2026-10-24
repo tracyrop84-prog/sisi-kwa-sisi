@@ -91,7 +91,7 @@ export type NewCampaign = Pick<
   "title" | "category" | "organiser" | "beneficiary" | "location" | "goal" | "story"
 >;
 
-export type CreateResult = { campaign: Campaign } | { error: "not-logged-in" };
+export type CreateResult = { campaign: Campaign } | { error: "not-logged-in" | "email-not-confirmed" };
 
 export async function createCampaign(input: NewCampaign): Promise<CreateResult> {
   const supabase = await createClient();
@@ -99,6 +99,7 @@ export async function createCampaign(input: NewCampaign): Promise<CreateResult> 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "not-logged-in" };
+  if (!user.email_confirmed_at) return { error: "email-not-confirmed" };
 
   const { data, error } = await supabase
     .from("campaigns")

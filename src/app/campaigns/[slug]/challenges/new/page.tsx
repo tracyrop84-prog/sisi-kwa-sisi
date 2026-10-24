@@ -29,6 +29,7 @@ export default async function NewChallengePage({ params }: Props) {
   const { slug } = await params;
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=/campaigns/${slug}/challenges/new`);
+  if (!user.emailConfirmed) redirect(`/check-email?next=${encodeURIComponent(`/campaigns/${slug}/challenges/new`)}`);
 
   const campaign = await getCampaign(slug);
   if (!campaign) notFound();

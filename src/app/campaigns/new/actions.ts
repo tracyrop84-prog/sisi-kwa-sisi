@@ -50,7 +50,11 @@ export async function createCampaignAction(
     goal,
   });
   if ("error" in result) {
-    return { errors: {}, values, formError: "You’ve been logged out. Please log in again, then submit." };
+    const formError =
+      result.error === "email-not-confirmed"
+        ? "Please confirm your email first. Check your inbox for the link."
+        : "You’ve been logged out. Please log in again, then submit.";
+    return { errors: {}, values, formError };
   }
   redirect(`/campaigns/${result.campaign.slug}`);
 }
