@@ -199,6 +199,7 @@ export async function getChallenge(slug: string): Promise<Challenge | undefined>
 // Error codes raised by supabase/challenges.sql, plus our own.
 export type ChallengeError =
   | "not-logged-in"
+  | "email-not-confirmed"
   | "campaign_not_found"
   | "no_organiser"
   | "already_hosting"
@@ -242,6 +243,7 @@ export async function createChallenge(input: NewChallenge): Promise<CreateChalle
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "not-logged-in" };
+  if (!user.email_confirmed_at) return { error: "email-not-confirmed" };
 
   // Slugs are random, so a clash is rare; just try again with a new one.
   for (let attempt = 0; ; attempt++) {

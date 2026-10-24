@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import ErrorMessage from "@/components/ErrorMessage";
+import NewPasswordFields from "@/components/NewPasswordFields";
+import PasswordInput from "@/components/PasswordInput";
+import { logInErrors, readAuthForm, signUpErrors, type AuthErrors } from "@/lib/validation";
 import { logInAction, signUpAction, type AuthState } from "./actions";
 
 const initialState: AuthState = { errors: {}, values: {} };
@@ -15,22 +18,24 @@ type Props = { mode: "login" | "signup"; next: string };
 export default function AuthForm({ mode, next }: Props) {
   const signup = mode === "signup";
   const [state, formAction, pending] = useActionState(signup ? signUpAction : logInAction, initialState);
-  const { errors, values, formError, checkEmail } = state;
+  // Errors found in the browser before submitting; null once the form passes.
+  const [clientErrors, setClientErrors] = useState<AuthErrors | null>(null);
+  const errors = clientErrors ?? state.errors;
+  const { values, formError } = state;
   const nextQuery = next === "/campaigns" ? "" : `?next=${encodeURIComponent(next)}`;
 
-  if (checkEmail) {
-    return (
-      <div role="status" className="rounded-2xl bg-accent/10 p-4">
-        <p className="font-bold">Check your email</p>
-        <p className="mt-1 text-sm text-muted">
-          We sent a link to <span className="font-semibold text-text">{values.email}</span>. Open it
-          to confirm your account, then you can start a harambee.
-        </p>
-      </div>
-    );
+  function checkBeforeSubmit(e: FormEvent<HTMLFormElement>) {
+    const form = readAuthForm(new FormData(e.currentTarget));
+    const found = signup ? signUpErrors(form) : logInErrors(form);
+    if (Object.keys(found).length > 0) {
+      e.preventDefault();
+      setClientErrors(found);
+    } else {
+      setClientErrors(null);
+    }
   }
 
-  const field = (name: keyof AuthState["errors"]) => ({
+  const field = (name: "name" | "email") => ({
     name,
     id: name,
     "aria-invalid": errors[name] ? true : undefined,
@@ -39,9 +44,15 @@ export default function AuthForm({ mode, next }: Props) {
 
   return (
     // key resets defaultValues after a failed submit so the user's input is kept
-    <form action={formAction} key={JSON.stringify(values)} className="flex flex-col gap-5" noValidate>
+    <form
+      action={formAction}
+      onSubmit={checkBeforeSubmit}
+      key={JSON.stringify(values)}
+      className="flex flex-col gap-5"
+      noValidate
+    >
       <input type="hidden" name="next" value={next} />
-      {formError && <ErrorMessage>{formError}</ErrorMessage>}
+      {formError && !clientErrors && <ErrorMessage>{formError}</ErrorMessage>}
 
       {signup && (
         <div>
@@ -59,22 +70,33 @@ export default function AuthForm({ mode, next }: Props) {
           type="email"
           inputMode="email"
           autoComplete="email"
+          autoCapitalize="none"
+          placeholder="name@example.com"
           className={inputClass}
         />
         {errors.email && <ErrorMessage id="email-error">{errors.email}</ErrorMessage>}
       </div>
 
-      <div>
-        <label htmlFor="password" className="font-semibold">Password</label>
-        <input
-          {...field("password")}
-          type="password"
-          autoComplete={signup ? "new-password" : "current-password"}
-          className={inputClass}
-        />
-        {signup && !errors.password && <p className="mt-1 text-sm text-muted">At least 8 characters.</p>}
-        {errors.password && <ErrorMessage id="password-error">{errors.password}</ErrorMessage>}
-      </div>
+      {signup ? (
+        <NewPasswordFields label="Password" errors={errors} />
+      ) : (
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="password" className="font-semibold">Password</label>
+            <Link href="/forgot-password" className="text-sm font-semibold text-accent">
+              Forgot password?
+            </Link>
+          </div>
+          <PasswordInput
+            name="password"
+            id="password"
+            autoComplete="current-password"
+            aria-invalid={errors.password ? true : undefined}
+            aria-describedby={errors.password ? "password-error" : undefined}
+          />
+          {errors.password && <ErrorMessage id="password-error">{errors.password}</ErrorMessage>}
+        </div>
+      )}
 
       <button
         type="submit"
