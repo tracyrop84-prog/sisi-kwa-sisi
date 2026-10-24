@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Start a harambee · Sisi kwa Sisi" }
 export default async function NewCampaignPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/signup?next=/campaigns/new");
+  if (!user.emailConfirmed) redirect("/check-email?next=/campaigns/new");
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">
