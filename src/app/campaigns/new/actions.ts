@@ -5,6 +5,7 @@ import { CATEGORIES, createCampaign, type Category } from "@/lib/campaigns";
 
 export type FormState = {
   errors: Partial<Record<Field, string>>;
+  formError?: string;
   values: Partial<Record<Field, string>>;
 };
 
@@ -43,10 +44,13 @@ export async function createCampaignAction(
 
   if (Object.keys(errors).length > 0) return { errors, values };
 
-  const campaign = await createCampaign({
+  const result = await createCampaign({
     ...values,
     category: values.category as Category,
     goal,
   });
-  redirect(`/campaigns/${campaign.slug}`);
+  if ("error" in result) {
+    return { errors: {}, values, formError: "You’ve been logged out. Please log in again, then submit." };
+  }
+  redirect(`/campaigns/${result.campaign.slug}`);
 }

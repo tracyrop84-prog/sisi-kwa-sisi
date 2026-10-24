@@ -1,21 +1,41 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import DonorList from "@/components/DonorList";
+import LiveRefresh from "@/components/LiveRefresh";
 import ProgressBar from "@/components/ProgressBar";
 import SiteHeader from "@/components/SiteHeader";
+import WhatsAppShareButton from "@/components/WhatsAppShareButton";
 import { getCampaign } from "@/lib/campaigns";
+import { getDonations } from "@/lib/donations";
+import { formatKES } from "@/lib/format";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ thanks?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const campaign = await getCampaign((await params).slug);
   return { title: campaign ? `${campaign.title} · Sisi kwa Sisi` : "Not found" };
 }
 
-export default async function CampaignPage({ params }: Props) {
+export default async function CampaignPage({ params, searchParams }: Props) {
   const campaign = await getCampaign((await params).slug);
   if (!campaign) notFound();
+
+  const [donations, url, { thanks }] = await Promise.all([
+    getDonations(campaign.id),
+    siteUrl(`/campaigns/${campaign.slug}`),
+    searchParams,
+  ]);
+
+  const shareText =
+    `Please support this harambee: ${campaign.title}. ` +
+    `${formatKES(campaign.raised)} raised of ${formatKES(campaign.goal)} so far.\n${url}`;
 
   const started = new Date(campaign.createdAt).toLocaleDateString("en-KE", {
     day: "numeric",
@@ -25,7 +45,17 @@ export default async function CampaignPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-md px-5 pb-28">
+      <LiveRefresh campaignId={campaign.id} />
       <SiteHeader />
+
+      {thanks && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Asante sana for your donation!</p>
+          <p className="mt-1 text-sm text-muted">
+            Sharing on WhatsApp is the best way to help reach the goal.
+          </p>
+        </div>
+      )}
 
       <article className="pt-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -47,6 +77,9 @@ export default async function CampaignPage({ params }: Props) {
             donorCount={campaign.donorCount}
             size="lg"
           />
+          <div className="mt-4">
+            <WhatsAppShareButton text={shareText} />
+          </div>
         </div>
 
         <section className="mt-6">
@@ -60,20 +93,27 @@ export default async function CampaignPage({ params }: Props) {
           </div>
           <p className="mt-4 text-sm text-muted">Started {started}</p>
         </section>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-bold">
+            Donors{" "}
+            <span className="font-medium text-muted">
+              ({campaign.donorCount.toLocaleString("en-KE")})
+            </span>
+          </h2>
+          <DonorList donations={donations} />
+        </section>
       </article>
 
-      {/* Sticky donate bar — thumb-reachable on phones. Donations arrive in Phase 2. */}
+      {/* Sticky donate bar — thumb-reachable on phones. */}
       <div className="fixed inset-x-0 bottom-0 border-t border-black/5 bg-surface/95 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
         <div className="mx-auto max-w-md">
-          <button
-            type="button"
-            disabled
-            title="Donations are coming soon"
-            className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-bold text-white disabled:opacity-90"
+          <Link
+            href={`/campaigns/${campaign.slug}/donate`}
+            className="block w-full rounded-xl bg-primary px-6 py-4 text-center text-lg font-bold text-white active:scale-[0.99] hover:brightness-95"
           >
             Donate
-          </button>
-          <p className="mt-1 text-center text-xs text-muted">Donations open soon</p>
+          </Link>
         </div>
       </div>
     </main>
