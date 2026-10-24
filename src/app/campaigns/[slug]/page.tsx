@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DonorList from "@/components/DonorList";
 import LiveRefresh from "@/components/LiveRefresh";
 import ProgressBar from "@/components/ProgressBar";
@@ -8,8 +9,8 @@ import SiteHeader from "@/components/SiteHeader";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
 import { getCampaign } from "@/lib/campaigns";
 import { getDonations } from "@/lib/donations";
-import { formatKES } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
+import { buildWhatsAppSummary } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,14 @@ export default async function CampaignPage({ params, searchParams }: Props) {
     searchParams,
   ]);
 
-  const shareText =
-    `Please support this harambee: ${campaign.title}. ` +
-    `${formatKES(campaign.raised)} raised of ${formatKES(campaign.goal)} so far.\n${url}`;
+  const whatsAppUpdate = buildWhatsAppSummary({
+    title: campaign.title,
+    raised: campaign.raised,
+    goal: campaign.goal,
+    donorCount: campaign.donorCount,
+    donors: donations.map((d) => ({ name: d.donorName, amount: d.amount })),
+    url,
+  });
 
   const started = new Date(campaign.createdAt).toLocaleDateString("en-KE", {
     day: "numeric",
@@ -77,8 +83,9 @@ export default async function CampaignPage({ params, searchParams }: Props) {
             donorCount={campaign.donorCount}
             size="lg"
           />
-          <div className="mt-4">
-            <WhatsAppShareButton text={shareText} />
+          <div className="mt-4 space-y-2">
+            <WhatsAppShareButton text={whatsAppUpdate} />
+            <CopyWhatsAppButton text={whatsAppUpdate} />
           </div>
         </div>
 
