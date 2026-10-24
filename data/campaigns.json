@@ -1,0 +1,67 @@
+[
+  {
+    "slug": "wanjiku-heart-surgery",
+    "title": "Help Wanjiku get heart surgery",
+    "category": "Medical",
+    "organiser": "Grace Muthoni",
+    "beneficiary": "Wanjiku Kamau",
+    "location": "Nyeri",
+    "goal": 850000,
+    "raised": 512300,
+    "donorCount": 214,
+    "story": "Wanjiku is 9 years old and needs open-heart surgery at Kenyatta National Hospital. Her family has sold what they can, but the cost is still far beyond reach.\n\nEvery shilling brings her closer to the operating table. Asante kwa moyo wako.",
+    "createdAt": "2026-10-02T09:00:00.000Z"
+  },
+  {
+    "slug": "otieno-school-fees",
+    "title": "Otieno's Form 3 school fees",
+    "category": "Education",
+    "organiser": "Mary Akinyi",
+    "beneficiary": "Brian Otieno",
+    "location": "Kisumu",
+    "goal": 65000,
+    "raised": 48500,
+    "donorCount": 37,
+    "story": "Brian is top of his class at Maseno School but risks being sent home this term over unpaid fees. Help us keep him in school.",
+    "createdAt": "2026-10-10T12:30:00.000Z"
+  },
+  {
+    "slug": "mzee-kiprono-send-off",
+    "title": "Send-off for Mzee Kiprono",
+    "category": "Funeral",
+    "organiser": "Kiprono Family",
+    "beneficiary": "The Kiprono family",
+    "location": "Eldoret",
+    "goal": 300000,
+    "raised": 301200,
+    "donorCount": 156,
+    "story": "Our father, Mzee Joseph Kiprono, rested on 14 October. We are raising funds to give him a dignified send-off in Kapsabet. Thank you for standing with us.",
+    "createdAt": "2026-10-15T07:45:00.000Z"
+  },
+  {
+    "slug": "kibera-water-tank",
+    "title": "Clean water tank for Kibera youth group",
+    "category": "Community",
+    "organiser": "Amani Youth Group",
+    "beneficiary": "Amani Youth Group",
+    "location": "Nairobi",
+    "goal": 180000,
+    "raised": 21000,
+    "donorCount": 18,
+    "story": "A 10,000-litre tank will give 60 households clean water and fund the group's car-wash business.",
+    "createdAt": "2026-10-20T15:10:00.000Z"
+  },
+  {
+    "title": "tafra",
+    "category": "Other",
+    "organiser": "Jepkorir",
+    "beneficiary": "tracy",
+    "location": "Kenya",
+    "goal": 457777,
+    "story": "regtrtyrfhf gfhhyy ghffyufy hfgyg hgug  hfjfj   ftfuyyjtijyug giuui giutu uygiutui",
+    "slug": "tafra",
+    "raised": 0,
+    "donorCount": 0,
+    "createdAt": "2026-10-24T15:39:06.639Z"
+  }
+]
