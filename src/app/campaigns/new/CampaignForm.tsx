@@ -4,16 +4,17 @@ import { useActionState } from "react";
 import ErrorMessage from "@/components/ErrorMessage";
 import { createCampaignAction, type FormState } from "./actions";
 
-const initialState: FormState = { errors: {}, values: {} };
-
 const inputClass =
   "mt-1 block w-full rounded-xl border border-black/15 bg-surface px-4 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
 
-type Props = { categories: readonly string[] };
+type Props = { categories: readonly string[]; organiserName: string };
 
-export default function CampaignForm({ categories }: Props) {
-  const [state, formAction, pending] = useActionState(createCampaignAction, initialState);
-  const { errors, values } = state;
+export default function CampaignForm({ categories, organiserName }: Props) {
+  const [state, formAction, pending] = useActionState(createCampaignAction, {
+    errors: {},
+    values: { organiser: organiserName },
+  });
+  const { errors, values, formError } = state;
   const hasErrors = Object.keys(errors).length > 0;
 
   const field = (name: keyof FormState["errors"]) => ({
@@ -27,6 +28,7 @@ export default function CampaignForm({ categories }: Props) {
   return (
     // key resets defaultValues after a failed submit so the user's input is kept
     <form action={formAction} key={JSON.stringify(values)} className="flex flex-col gap-5" noValidate>
+      {formError && <ErrorMessage>{formError}</ErrorMessage>}
       {hasErrors && <ErrorMessage>Please fix the highlighted fields below.</ErrorMessage>}
 
       <div>

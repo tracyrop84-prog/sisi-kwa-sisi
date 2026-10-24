@@ -1,12 +1,10 @@
 import Link from "next/link";
-import Logo from "@/components/Logo";
+import SiteHeader from "@/components/SiteHeader";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-6">
-      <header>
-        <Logo />
-      </header>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-6">
+      <SiteHeader />
 
       <section className="flex flex-1 flex-col justify-center gap-6 py-12">
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
