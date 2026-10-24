@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* Brand colours — see CLAUDE.md */
+@theme inline {
+  --color-primary: #c1121f;
+  --color-accent: #1d4ed8;
+  --color-text: #1f1f1f;
+  --color-muted: #555555;
+  --color-background: #fafaf7;
+  --color-surface: #ffffff;
+  --color-error-bg: #fde8e9;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
