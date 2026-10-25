@@ -1,12 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { campaignDetailErrors } from "@/lib/campaignRules";
 import { CATEGORIES, createCampaign, type Category } from "@/lib/campaigns";
 
 export type FormState = {
   errors: Partial<Record<Field, string>>;
   formError?: string;
   values: Partial<Record<Field, string>>;
+  // Set instead of redirecting when a cover photo still has to be uploaded,
+  // which can only happen once the campaign exists.
+  created?: { id: string; slug: string };
 };
 
 type Field = "title" | "category" | "organiser" | "beneficiary" | "location" | "goal" | "story";
@@ -28,19 +32,15 @@ export async function createCampaignAction(
     story: String(formData.get("story") ?? "").trim(),
   };
 
-  const errors: FormState["errors"] = {};
-  if (values.title.length < 5) errors.title = "Give your harambee a title (at least 5 characters).";
-  if (values.title.length > 100) errors.title = "Keep the title under 100 characters.";
+  const errors: FormState["errors"] = campaignDetailErrors(values);
   if (!CATEGORIES.includes(values.category as Category)) errors.category = "Choose a category.";
   if (!values.organiser) errors.organiser = "Tell people who is organising.";
   if (!values.beneficiary) errors.beneficiary = "Tell people who the money is for.";
-  if (!values.location) errors.location = "Add a town or county.";
 
   const goal = Number(values.goal);
   if (!Number.isInteger(goal) || goal < MIN_GOAL || goal > MAX_GOAL) {
     errors.goal = `Enter a whole amount between KES ${MIN_GOAL.toLocaleString("en-KE")} and KES ${MAX_GOAL.toLocaleString("en-KE")}.`;
   }
-  if (values.story.length < 30) errors.story = "Share a bit more of the story (at least 30 characters).";
 
   if (Object.keys(errors).length > 0) return { errors, values };
 
@@ -56,5 +56,7 @@ export async function createCampaignAction(
         : "You’ve been logged out. Please log in again, then submit.";
     return { errors: {}, values, formError };
   }
-  redirect(`/campaigns/${result.campaign.slug}`);
+  const { id, slug } = result.campaign;
+  if (formData.get("hasCover") === "1") return { errors: {}, values, created: { id, slug } };
+  redirect(`/campaigns/${slug}`);
 }

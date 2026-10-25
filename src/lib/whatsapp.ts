@@ -1,4 +1,6 @@
 import { formatKES, formatTimeLeft, percentRaised } from "@/lib/format";
+import type { Category } from "@/lib/categories";
+import { RECOVERY_STATUSES, updateEmoji, updateLabel, type RecoveryStatus, type UpdateType } from "@/lib/updateTypes";
 
 // Builds the progress update people paste into WhatsApp groups. Kept generic
 // (no Campaign type) so challenges can reuse the same format later.
@@ -89,4 +91,46 @@ export function buildChallengeInvite(c: ChallengeInvite): string {
       ];
 
   return [...lines, c.url].join("\n");
+}
+
+export type UpdateShare = {
+  campaignTitle: string;
+  category: Category; // names progress updates, e.g. "Wedding preparations"
+  type: UpdateType;
+  body: string | null;
+  giftItem: string | null;
+  giftGiver: string | null; // null = Anonymous
+  recoveryStatus: RecoveryStatus | null;
+  url: string; // links straight to the update on the campaign page
+};
+
+// First line of the update, kept short for the message preview.
+function snippet(body: string | null, max = 120): string {
+  const text = plain((body ?? "").replace(/\s+/g, " "));
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+// The short message behind each update's "Share to WhatsApp" button, e.g.
+// "New update from *Help Wanjiku*: 🎁 a bed donated by Kamau".
+export function buildUpdateShare(u: UpdateShare): string {
+  const emoji = updateEmoji(u.type, u.category);
+  const label = updateLabel(u.type, u.category);
+  let headline: string;
+  if (u.type === "gift") {
+    const item = plain(u.giftItem ?? "a gift");
+    headline = `${emoji} ${item} ${u.giftGiver ? `donated by ${plain(u.giftGiver)}` : "donated anonymously"}`;
+  } else if (u.type === "recovery") {
+    headline = `${emoji} ${label}${u.recoveryStatus ? `: ${RECOVERY_STATUSES[u.recoveryStatus]}` : ""}`;
+  } else if (u.type === "progress") {
+    headline = `${emoji} ${label}`;
+  } else {
+    headline = emoji;
+  }
+
+  const text = snippet(u.body);
+  const lines =
+    u.type === "general" || u.type === "gift"
+      ? [`New update from *${plain(u.campaignTitle)}*: ${headline}${u.type === "general" ? ` ${text}` : ""}`]
+      : [`New update from *${plain(u.campaignTitle)}*: ${headline}`, ...(text ? [text] : [])];
+  return [...lines, "", u.url].join("\n");
 }

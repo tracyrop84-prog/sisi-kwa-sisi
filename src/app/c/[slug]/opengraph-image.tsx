@@ -2,47 +2,21 @@ import { ImageResponse } from "next/og";
 import { getCampaignById } from "@/lib/campaigns";
 import { CHALLENGE_TYPES, challengeState, challengeTitle, getChallenge } from "@/lib/challenges";
 import { formatKES, formatTimeLeft } from "@/lib/format";
+import { clip, loadCoverPhoto, loadOgFonts, OG_COLORS, OG_SIZE } from "@/lib/og";
 
 // The preview card WhatsApp, Facebook and X show when a challenge link is shared.
-// Campaign photos come in a later phase; for now it's a generated card.
+// When the campaign has a cover photo, it fills the right-hand side.
 
-export const size = { width: 1200, height: 630 };
+export const size = OG_SIZE;
 export const contentType = "image/png";
 export const alt = "A Sisi kwa Sisi challenge";
 
-const COLORS = {
-  primary: "#C1121F",
-  accent: "#1D4ED8",
-  text: "#1F1F1F",
-  muted: "#555555",
-  background: "#FAFAF7",
-};
-
-// Plus Jakarta Sans from Google Fonts (TTF, which the image renderer needs).
-// If Google can't be reached, the card still renders in the built-in font.
-async function loadFont(weight: number): Promise<ArrayBuffer | null> {
-  try {
-    const css = await fetch(`https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@${weight}`, {
-      cache: "force-cache",
-    }).then((r) => r.text());
-    const src = css.match(/src: url\((.+?)\) format\('(?:truetype|opentype)'\)/)?.[1];
-    if (!src) return null;
-    return await fetch(src, { cache: "force-cache" }).then((r) => r.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+const COLORS = OG_COLORS;
 
 export default async function Image({ params }: { params: { slug: string } }) {
   const challenge = await getChallenge(params.slug);
   const campaign = challenge && (await getCampaignById(challenge.campaignId));
-  const [medium, bold] = await Promise.all([loadFont(500), loadFont(800)]);
-  const fonts = [
-    ...(medium ? [{ name: "Jakarta", data: medium, weight: 500 as const }] : []),
-    ...(bold ? [{ name: "Jakarta", data: bold, weight: 800 as const }] : []),
-  ];
+  const [fonts, cover] = await Promise.all([loadOgFonts(), loadCoverPhoto(campaign?.coverPhoto ?? null)]);
 
   if (!challenge || !campaign) {
     return new ImageResponse(
@@ -75,77 +49,84 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const raisedNote =
     challenge.target !== null ? `raised of ${formatKES(challenge.target)} target` : "raised by this challenge";
 
+  // With a cover photo the text column is narrower, so titles are clipped shorter.
+  const wide = !cover;
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          padding: 64,
-          background: COLORS.background,
-          color: COLORS.text,
-          fontFamily: "Jakarta",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 32, fontWeight: 800 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 11, background: COLORS.primary }} />
-            Sisi kwa Sisi
-          </div>
-          <div
-            style={{
-              display: "flex",
-              padding: "10px 22px",
-              borderRadius: 999,
-              background: "rgba(29, 78, 216, 0.1)",
-              color: COLORS.accent,
-              fontSize: 26,
-              fontWeight: 800,
-            }}
-          >
-            {type.name} · {type.tagline}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", marginTop: 56 }}>
-          <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1.5 }}>
-            {clip(challengeTitle(challenge), 32)}
-          </div>
-          <div style={{ marginTop: 18, fontSize: 36, fontWeight: 500, color: COLORS.muted }}>
-            {`for ${clip(campaign.title, 52)}`}
-          </div>
-          <div style={{ marginTop: 10, fontSize: 30, fontWeight: 500, color: COLORS.muted }}>
-            {`Hosted by ${clip(challenge.hostName, 40)}`}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
-              <div style={{ fontSize: 60, fontWeight: 800 }}>{formatKES(challenge.raised)}</div>
-              <div style={{ fontSize: 30, fontWeight: 500, color: COLORS.muted }}>{raisedNote}</div>
+      <div style={{ display: "flex", width: "100%", height: "100%", background: COLORS.background }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            height: "100%",
+            padding: wide ? 64 : 56,
+            color: COLORS.text,
+            fontFamily: "Jakarta",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 32, fontWeight: 800 }}>
+              <div style={{ width: 22, height: 22, borderRadius: 11, background: COLORS.primary }} />
+              Sisi kwa Sisi
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: state === "live" ? COLORS.accent : COLORS.muted }}>
-              {status}
+            <div
+              style={{
+                display: "flex",
+                padding: "10px 22px",
+                borderRadius: 999,
+                background: "rgba(29, 78, 216, 0.1)",
+                color: COLORS.accent,
+                fontSize: 26,
+                fontWeight: 800,
+              }}
+            >
+              {wide ? `${type.name} · ${type.tagline}` : type.name}
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              marginTop: 20,
-              height: 26,
-              width: "100%",
-              borderRadius: 13,
-              overflow: "hidden",
-              background: "rgba(29, 78, 216, 0.15)",
-            }}
-          >
-            <div style={{ width: `${share}%`, height: "100%", background: COLORS.accent }} />
-            <div style={{ width: `${rest}%`, height: "100%", background: "rgba(29, 78, 216, 0.35)" }} />
+
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 56 }}>
+            <div style={{ fontSize: wide ? 76 : 60, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1.5 }}>
+              {clip(challengeTitle(challenge), wide ? 32 : 26)}
+            </div>
+            <div style={{ marginTop: 18, fontSize: wide ? 36 : 30, fontWeight: 500, color: COLORS.muted }}>
+              {`for ${clip(campaign.title, wide ? 52 : 40)}`}
+            </div>
+            <div style={{ marginTop: 10, fontSize: wide ? 30 : 26, fontWeight: 500, color: COLORS.muted }}>
+              {`Hosted by ${clip(challenge.hostName, wide ? 40 : 30)}`}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+                <div style={{ fontSize: wide ? 60 : 48, fontWeight: 800 }}>{formatKES(challenge.raised)}</div>
+                {wide && <div style={{ fontSize: 30, fontWeight: 500, color: COLORS.muted }}>{raisedNote}</div>}
+              </div>
+              <div style={{ fontSize: wide ? 32 : 26, fontWeight: 800, color: state === "live" ? COLORS.accent : COLORS.muted }}>
+                {status}
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                marginTop: 20,
+                height: 26,
+                width: "100%",
+                borderRadius: 13,
+                overflow: "hidden",
+                background: "rgba(29, 78, 216, 0.15)",
+              }}
+            >
+              <div style={{ width: `${share}%`, height: "100%", background: COLORS.accent }} />
+              <div style={{ width: `${rest}%`, height: "100%", background: "rgba(29, 78, 216, 0.35)" }} />
+            </div>
           </div>
         </div>
+        {cover && (
+          <img src={cover} alt="" width={420} height={630} style={{ width: 420, height: 630, objectFit: "cover" }} />
+        )}
       </div>
     ),
     { ...size, fonts },
