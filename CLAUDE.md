@@ -32,6 +32,7 @@ Mobile-first: most users open links from WhatsApp, so design for 390px phones fi
 - Payments are MOCK for now. No real M-Pesa until told.
 - Never put API keys or secrets in frontend code; use environment variables.
 - Build one phase at a time and keep things simple.
+- No Co-Authored-By lines or Claude attribution in commits or pull requests.
 
 ## Phases
 
