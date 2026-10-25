@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import ErrorMessage from "@/components/ErrorMessage";
 import PhotoPicker from "@/components/PhotoPicker";
-import { campaignDetailErrors, type DetailField } from "@/lib/campaignRules";
+import { campaignDetailErrors, goalError, type DetailField } from "@/lib/campaignRules";
 import { photoUrl } from "@/lib/photos";
 import { uploadPhotos, type PickedPhoto } from "@/lib/uploadPhotos";
 import { editCampaignAction, type EditCampaignState } from "./actions";
@@ -17,10 +17,14 @@ type Props = {
   initial: Record<DetailField, string>;
   beneficiaryLocked: boolean; // true once the campaign has a donation
   coverPhoto: string | null;
+  // Only while an admin has requested changes. maxGoal is set for organisers
+  // who are still capped at NEW_ORGANISER_MAX_GOAL.
+  goal?: { initial: number; maxGoal: number | null };
 };
 
-export default function EditCampaignForm({ campaignId, campaignSlug, initial, beneficiaryLocked, coverPhoto }: Props) {
+export default function EditCampaignForm({ campaignId, campaignSlug, initial, beneficiaryLocked, coverPhoto, goal }: Props) {
   const [values, setValues] = useState(initial);
+  const [goalText, setGoalText] = useState(goal ? goal.initial.toLocaleString("en-KE") : "");
   const [cover, setCover] = useState<PickedPhoto[]>(
     coverPhoto ? [{ key: coverPhoto, path: coverPhoto, preview: photoUrl(coverPhoto) }] : [],
   );
@@ -38,7 +42,12 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, be
       story: values.story.trim(),
     };
     // Check the text before uploading, so a photo isn't uploaded for nothing.
-    const found = campaignDetailErrors(trimmed);
+    const found: EditCampaignState["errors"] = campaignDetailErrors(trimmed);
+    if (goal) {
+      const typed = Number(goalText.replace(/[,\s]/g, ""));
+      const problem = typed === goal.initial ? undefined : goalError(typed, goal.maxGoal);
+      if (problem) found.goal = problem;
+    }
     if (Object.keys(found).length > 0) {
       setState({ errors: found });
       return;
@@ -52,7 +61,7 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, be
         return;
       }
       // On success the server sends the browser to the campaign page.
-      setState(await editCampaignAction(campaignSlug, trimmed, paths[0] ?? null));
+      setState(await editCampaignAction(campaignSlug, trimmed, paths[0] ?? null, goal ? goalText : null));
     });
   }
 
@@ -83,6 +92,30 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, be
         <input {...field("title")} className={inputClass} maxLength={100} />
         {errors.title && <ErrorMessage id="title-error">{errors.title}</ErrorMessage>}
       </div>
+
+      {goal && (
+        <div>
+          <label htmlFor="goal" className="font-semibold">Goal (KES)</label>
+          <p className="text-sm text-muted">
+            {goal.maxGoal
+              ? `You can change it while our team is asking for changes, up to KES ${goal.maxGoal.toLocaleString("en-KE")}.`
+              : "You can change it while our team is asking for changes."}
+          </p>
+          <div className="relative">
+            <span className="pointer-events-none absolute top-1/2 left-4 mt-0.5 -translate-y-1/2 text-muted">KES</span>
+            <input
+              id="goal"
+              value={goalText}
+              onChange={(e) => setGoalText(e.target.value)}
+              inputMode="numeric"
+              aria-invalid={errors.goal ? true : undefined}
+              aria-describedby={errors.goal ? "goal-error" : undefined}
+              className={`${inputClass} pl-14`}
+            />
+          </div>
+          {errors.goal && <ErrorMessage id="goal-error">{errors.goal}</ErrorMessage>}
+        </div>
+      )}
 
       <div>
         <label htmlFor="beneficiary" className="font-semibold">Who is it for?</label>

@@ -30,9 +30,16 @@ export default function AdminActions({ campaignId, campaignSlug, decisions, clea
         <div className="rounded-xl bg-background p-3 ring-1 ring-black/15">
           <p className="text-sm font-bold">Close this harambee for good?</p>
           <p className="mt-1 text-sm text-muted">
-            It stops taking donations permanently, and{" "}
-            {donorCount === 1 ? "its 1 donation is" : `all ${donorCount.toLocaleString("en-KE")} donations are`} marked
-            to be refunded. This can’t be undone.
+            {donorCount === 0 ? (
+              "It can never take donations."
+            ) : (
+              <>
+                It stops taking donations permanently, and{" "}
+                {donorCount === 1 ? "its 1 donation is" : `all ${donorCount.toLocaleString("en-KE")} donations are`}{" "}
+                marked to be refunded.
+              </>
+            )}{" "}
+            This can’t be undone.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button

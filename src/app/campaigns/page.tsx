@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import CampaignCard from "@/components/CampaignCard";
 import SiteHeader from "@/components/SiteHeader";
-import { getCampaigns } from "@/lib/campaigns";
+import { getCurrentUser } from "@/lib/auth";
+import { getCampaigns, getMyUnpublishedCampaigns } from "@/lib/campaigns";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,9 @@ type Props = { searchParams: Promise<{ show?: string }> };
 export default async function CampaignsPage({ searchParams }: Props) {
   // Completed harambees get their own tab, so they never mix with ones still raising.
   const show = (await searchParams).show === "completed" ? "completed" : "running";
-  const campaigns = await getCampaigns(show);
+  const [campaigns, user] = await Promise.all([getCampaigns(show), getCurrentUser()]);
+  // Only the organiser can see these, so this is the way back to them.
+  const mine = user ? await getMyUnpublishedCampaigns(user.id) : [];
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">
@@ -24,6 +27,18 @@ export default async function CampaignsPage({ searchParams }: Props) {
           + Start one
         </Link>
       </div>
+      {mine.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 font-bold">Your harambees not live yet</h2>
+          <ul className="flex flex-col gap-4">
+            {mine.map((c) => (
+              <li key={c.slug}>
+                <CampaignCard campaign={c} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <nav aria-label="Show" className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-black/5 p-1 text-sm font-semibold">
         <Tab href="/campaigns" current={show === "running"}>
           Active

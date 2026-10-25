@@ -1,7 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { CAMPAIGN_DECLARATION, campaignDetailErrors, MAX_OPEN_CAMPAIGNS } from "@/lib/campaignRules";
+import {
+  CAMPAIGN_DECLARATION,
+  campaignDetailErrors,
+  goalCapMessage,
+  goalError,
+  MAX_OPEN_CAMPAIGNS,
+  NEW_ORGANISER_MAX_GOAL,
+} from "@/lib/campaignRules";
 import { CATEGORIES, createCampaign, type Category, type CreateError } from "@/lib/campaigns";
 
 export type FormState = {
@@ -23,13 +30,14 @@ function friendlyError(code: CreateError): string {
       return "Please tick the box to confirm the information is true.";
     case "campaign_limit":
       return `You already have ${MAX_OPEN_CAMPAIGNS} active harambees, which is the most you can run at once.`;
+    case "phone_not_verified":
+      return "Please verify your phone number first.";
+    case "goal_too_high":
+      return goalCapMessage(NEW_ORGANISER_MAX_GOAL);
     default:
       return "You’ve been logged out. Please log in again, then submit.";
   }
 }
-
-const MIN_GOAL = 1000;
-const MAX_GOAL = 50_000_000;
 
 export async function createCampaignAction(
   _prev: FormState,
@@ -52,9 +60,8 @@ export async function createCampaignAction(
   if (!values.declaration) errors.declaration = "Please tick the box to confirm the information is true.";
 
   const goal = Number(values.goal);
-  if (!Number.isInteger(goal) || goal < MIN_GOAL || goal > MAX_GOAL) {
-    errors.goal = `Enter a whole amount between KES ${MIN_GOAL.toLocaleString("en-KE")} and KES ${MAX_GOAL.toLocaleString("en-KE")}.`;
-  }
+  const goalProblem = goalError(goal);
+  if (goalProblem) errors.goal = goalProblem;
 
   if (Object.keys(errors).length > 0) return { errors, values };
 
@@ -71,7 +78,10 @@ export async function createCampaignAction(
     // The server's copy of the text, so what's stored is exactly what the form shows.
     CAMPAIGN_DECLARATION,
   );
-  if ("error" in result) return { errors: {}, values, formError: friendlyError(result.error) };
+  if ("error" in result) {
+    if (result.error === "goal_too_high") return { errors: { goal: friendlyError(result.error) }, values };
+    return { errors: {}, values, formError: friendlyError(result.error) };
+  }
   const { id, slug } = result.campaign;
   if (formData.get("hasCover") === "1") return { errors: {}, values, created: { id, slug } };
   redirect(`/campaigns/${slug}`);

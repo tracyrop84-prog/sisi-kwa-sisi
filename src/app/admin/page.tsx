@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
+import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCampaignsAwaitingApproval, getCampaignsByIds, type Campaign } from "@/lib/campaigns";
+import { getCampaignIdsWithDocuments } from "@/lib/documents";
 import { formatKES } from "@/lib/format";
 import { getCampaignsUnderReview, REPORT_REASONS, type CampaignUnderReview, type Report } from "@/lib/reports";
 import AdminActions from "./AdminActions";
@@ -17,7 +20,15 @@ export default async function AdminPage() {
   // Non-admins see a plain 404, so the page doesn't advertise itself.
   if (!(await isAdmin())) notFound();
 
-  const items = await getCampaignsUnderReview();
+  const [items, awaiting, withDocuments] = await Promise.all([
+    getCampaignsUnderReview(),
+    getCampaignsAwaitingApproval(),
+    getCampaignIdsWithDocuments().then(getCampaignsByIds),
+  ]);
+  const pending = awaiting.filter((c) => c.status === "pending");
+  const changesRequested = awaiting.filter((c) => c.status === "changes_requested");
+  // Pending ones are already listed above, with their documents.
+  const toCheck = withDocuments.filter((c) => !c.documentsCheckedAt && c.status !== "closed" && c.status !== "pending");
   const paused = items.filter((x) => x.campaign.status === "paused");
   // Live or already completed by the organiser, with open reports.
   const reported = items.filter((x) => x.campaign.status === "active" || x.campaign.status === "completed");
@@ -27,12 +38,56 @@ export default async function AdminPage() {
     <main className="mx-auto max-w-md px-5 pb-10">
       <SiteHeader />
       <h1 className="pt-4 text-2xl font-extrabold tracking-tight">Admin review</h1>
-      <p className="mt-1 text-muted">Reported and paused harambees. Reporters are never shown.</p>
+      <p className="mt-1 text-muted">Approvals, documents, and reported or paused harambees. Reporters are never shown.</p>
+
+      <ShortSection title="Waiting for approval" campaigns={pending} empty="No harambees waiting for approval." />
+      {changesRequested.length > 0 && (
+        <ShortSection title="Changes requested" campaigns={changesRequested} empty="" />
+      )}
+      <ShortSection title="Documents to check" campaigns={toCheck} empty="No documents waiting to be checked." />
 
       <Section title="Paused" items={paused} empty="No paused harambees." />
       <Section title="Reported, not paused" items={reported} empty="No open reports on other harambees." />
       {closed.length > 0 && <Section title="Closed" items={closed} empty="" />}
     </main>
+  );
+}
+
+// A campaign per row, linking to its review page (src/app/admin/campaigns/[id]).
+function ShortSection({ title, campaigns, empty }: { title: string; campaigns: Campaign[]; empty: string }) {
+  return (
+    <section className="mt-8">
+      <h2 className="text-lg font-bold">
+        {title} <span className="font-medium text-muted">({campaigns.length})</span>
+      </h2>
+      {campaigns.length === 0 ? (
+        <p className="mt-2 text-muted">{empty}</p>
+      ) : (
+        <ul className="mt-2 flex flex-col gap-3">
+          {campaigns.map((c) => (
+            <li key={c.id}>
+              <Link
+                href={`/admin/campaigns/${c.id}`}
+                className="block rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5 active:scale-[0.99]"
+              >
+                <span className="block font-bold leading-snug text-accent">{c.title}</span>
+                <span className="mt-0.5 block text-sm text-muted">
+                  {c.category} · by {c.organiser} · goal {formatKES(c.goal)}
+                </span>
+                {c.status === "changes_requested" && c.changesRequestedReason && (
+                  <span className="mt-1 block truncate text-sm">You asked: {c.changesRequestedReason}</span>
+                )}
+                {c.documentsCheckedAt && (
+                  <span className="mt-1 block">
+                    <DocumentsCheckedBadge small />
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -60,7 +115,7 @@ function Section({ title, items, empty }: { title: string; items: CampaignUnderR
 function CampaignReview({ item: { campaign: c, reports, openReports } }: { item: CampaignUnderReview }) {
   return (
     <>
-      <Link href={`/campaigns/${c.slug}`} className="font-bold leading-snug text-accent hover:underline">
+      <Link href={`/admin/campaigns/${c.id}`} className="font-bold leading-snug text-accent hover:underline">
         {c.title}
       </Link>
       <p className="mt-0.5 text-sm text-muted">

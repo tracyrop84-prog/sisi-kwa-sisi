@@ -2,18 +2,34 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { campaignDetailErrors, type DetailField } from "@/lib/campaignRules";
-import { getCampaign, setCampaignCover, updateCampaignDetails, type Campaign } from "@/lib/campaigns";
+import {
+  campaignDetailErrors,
+  goalCapMessage,
+  goalError,
+  NEW_ORGANISER_MAX_GOAL,
+  type DetailField,
+} from "@/lib/campaignRules";
+import {
+  canEditDetails,
+  getCampaign,
+  isTrustedOrganiser,
+  setCampaignCover,
+  updateCampaignDetails,
+  type Campaign,
+} from "@/lib/campaigns";
 import { isPhotoPath } from "@/lib/photos";
 import { removePhotos } from "@/lib/updates";
 
 // The forms upload the cover photo to Storage first, then send its path here.
+// goalInput is what was typed in the goal field, which only shows while an
+// admin has requested changes; null otherwise.
 
-export type EditCampaignState = { errors: Partial<Record<DetailField, string>>; formError?: string };
+export type EditCampaignState = { errors: Partial<Record<DetailField | "goal", string>>; formError?: string };
 
 const NOT_ORGANISER = "Only the organiser can edit this harambee. Please log in again.";
 const UNDER_REVIEW = "This harambee is under review, closed or has ended, so its details can’t be edited.";
 const BENEFICIARY_LOCKED = "Who the money is for can’t be changed once the harambee has a donation.";
+const GOAL_LOCKED = "The goal can only be changed while our team is asking for changes.";
 
 async function organiserCampaign(slug: string): Promise<Campaign | null> {
   const [user, campaign] = await Promise.all([getCurrentUser(), getCampaign(slug)]);
@@ -28,6 +44,7 @@ export async function editCampaignAction(
   slug: string,
   input: Record<DetailField, string>,
   coverPhoto: string | null,
+  goalInput: string | null = null,
 ): Promise<EditCampaignState> {
   const text = (x: unknown) => (typeof x === "string" ? x.trim() : "");
   const details = {
@@ -41,23 +58,42 @@ export async function editCampaignAction(
   if (!campaign || !validCover(coverPhoto, campaign.id)) return { errors: {}, formError: NOT_ORGANISER };
   const newCover = coverPhoto !== campaign.coverPhoto ? coverPhoto : null;
   // The database ignores edits then, so say so instead of pretending to save.
-  if (campaign.status !== "active") {
+  if (!canEditDetails(campaign.status)) {
     if (newCover) await removePhotos([newCover]);
     return { errors: {}, formError: UNDER_REVIEW };
   }
 
-  const errors = campaignDetailErrors(details);
+  const errors: EditCampaignState["errors"] = campaignDetailErrors(details);
   // The database refuses this too (supabase/reports.sql).
   if (details.beneficiary !== campaign.beneficiary && campaign.donorCount > 0) errors.beneficiary = BENEFICIARY_LOCKED;
+
+  // Only sent to the database when it changed; it checks the same rules (supabase/goal_edits.sql).
+  let goal: number | undefined;
+  if (typeof goalInput === "string") {
+    const typed = Number(goalInput.replace(/[,\s]/g, ""));
+    if (typed !== campaign.goal) {
+      if (campaign.status !== "changes_requested") {
+        errors.goal = GOAL_LOCKED;
+      } else {
+        const trusted = campaign.organiserId ? await isTrustedOrganiser(campaign.organiserId) : false;
+        const problem = goalError(typed, trusted ? null : NEW_ORGANISER_MAX_GOAL);
+        if (problem) errors.goal = problem;
+        else goal = typed;
+      }
+    }
+  }
   if (Object.keys(errors).length > 0) {
     if (newCover) await removePhotos([newCover]);
     return { errors };
   }
 
   try {
-    // A donation can land between loading the campaign and saving.
-    if ("error" in (await updateCampaignDetails(campaign.id, { ...details, coverPhoto }))) {
+    // A donation can land, or the harambee be resubmitted, between loading it and saving.
+    const result = await updateCampaignDetails(campaign.id, { ...details, coverPhoto, goal });
+    if ("error" in result) {
       if (newCover) await removePhotos([newCover]);
+      if (result.error === "goal_locked") return { errors: { goal: GOAL_LOCKED } };
+      if (result.error === "goal_too_high") return { errors: { goal: goalCapMessage(NEW_ORGANISER_MAX_GOAL) } };
       return { errors: { beneficiary: BENEFICIARY_LOCKED } };
     }
   } catch (error) {
@@ -73,7 +109,7 @@ export async function editCampaignAction(
 export async function setCoverAction(slug: string, coverPhoto: string): Promise<{ error?: string }> {
   const campaign = await organiserCampaign(slug);
   if (!campaign || !isPhotoPath(coverPhoto, campaign.id, "cover")) return { error: NOT_ORGANISER };
-  if (campaign.status !== "active") {
+  if (!canEditDetails(campaign.status)) {
     await removePhotos([coverPhoto]);
     return { error: UNDER_REVIEW };
   }

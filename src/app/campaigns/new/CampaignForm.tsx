@@ -5,7 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { setCoverAction } from "@/app/campaigns/[slug]/edit/actions";
 import ErrorMessage from "@/components/ErrorMessage";
 import PhotoPicker from "@/components/PhotoPicker";
-import { CAMPAIGN_DECLARATION } from "@/lib/campaignRules";
+import { APPROVAL_GOAL, CAMPAIGN_DECLARATION } from "@/lib/campaignRules";
 import { CATEGORIES, CATEGORY_INFO } from "@/lib/categories";
 import { uploadPhotos, type PickedPhoto } from "@/lib/uploadPhotos";
 import { createCampaignAction, type FormState } from "./actions";
@@ -13,9 +13,12 @@ import { createCampaignAction, type FormState } from "./actions";
 const inputClass =
   "mt-1 block w-full rounded-xl border border-black/15 bg-surface px-4 py-3 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
 
-type Props = { organiserName: string };
+type Props = {
+  organiserName: string;
+  maxGoal: number | null; // null when the organiser isn't capped (see NEW_ORGANISER_MAX_GOAL)
+};
 
-export default function CampaignForm({ organiserName }: Props) {
+export default function CampaignForm({ organiserName, maxGoal }: Props) {
   const [state, formAction, pending] = useActionState(createCampaignAction, {
     errors: {},
     values: { organiser: organiserName },
@@ -89,6 +92,11 @@ export default function CampaignForm({ organiserName }: Props) {
           <span className="pointer-events-none absolute top-1/2 left-4 mt-0.5 -translate-y-1/2 text-muted">KES</span>
           <input {...field("goal")} className={`${inputClass} pl-14`} inputMode="numeric" placeholder="100,000" />
         </div>
+        <p className="mt-1 text-sm text-muted">
+          {maxGoal
+            ? `Up to KES ${maxGoal.toLocaleString("en-KE")} for your first harambee. Once one is completed or its documents are checked, you can ask for more.`
+            : `Goals over KES ${APPROVAL_GOAL.toLocaleString("en-KE")} are checked by our team before they go live.`}
+        </p>
         {errors.goal && <ErrorMessage id="goal-error">{errors.goal}</ErrorMessage>}
       </div>
 

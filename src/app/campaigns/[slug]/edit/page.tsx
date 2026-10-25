@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import ErrorMessage from "@/components/ErrorMessage";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentUser } from "@/lib/auth";
-import { getCampaign } from "@/lib/campaigns";
+import { NEW_ORGANISER_MAX_GOAL } from "@/lib/campaignRules";
+import { canEditDetails, getCampaign, isTrustedOrganiser } from "@/lib/campaigns";
 import EditCampaignForm from "./EditCampaignForm";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,11 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
   // Only the organiser can edit; everyone else sees a plain 404.
   if (!campaign || campaign.organiserId !== user.id) notFound();
   const { cover } = await searchParams;
+  // The goal can only change while an admin has requested changes (supabase/goal_edits.sql).
+  const goal =
+    campaign.status === "changes_requested"
+      ? { initial: campaign.goal, maxGoal: (await isTrustedOrganiser(user.id)) ? null : NEW_ORGANISER_MAX_GOAL }
+      : undefined;
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">
@@ -33,7 +39,7 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
         ← Back to harambee
       </Link>
       <h1 className="mt-3 mb-6 text-2xl font-extrabold leading-tight tracking-tight">Edit harambee</h1>
-      {campaign.status !== "active" ? (
+      {!canEditDetails(campaign.status) ? (
         <p className="rounded-2xl bg-surface p-4 text-muted shadow-sm ring-1 ring-black/5">
           {campaign.status === "paused"
             ? "You can’t edit this harambee while it’s under review."
@@ -43,6 +49,18 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
         </p>
       ) : (
         <>
+          {campaign.status === "changes_requested" && campaign.changesRequestedReason && (
+            <div className="mb-5 rounded-2xl bg-accent/10 p-4">
+              <p className="font-bold">What our team asked you to change</p>
+              <p className="mt-1 text-sm whitespace-pre-line break-words">{campaign.changesRequestedReason}</p>
+              <p className="mt-2 text-sm text-muted">After saving, resubmit it from your harambee page.</p>
+            </div>
+          )}
+          {campaign.donorCount > 0 && (
+            <p className="mb-5 text-sm text-muted">
+              Donors can see that the harambee was edited, and our team keeps a record of every change.
+            </p>
+          )}
           {cover === "failed" && (
             <div className="mb-5">
               <ErrorMessage>
@@ -61,6 +79,7 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
             }}
             beneficiaryLocked={campaign.donorCount > 0}
             coverPhoto={campaign.coverPhoto}
+            goal={goal}
           />
         </>
       )}
