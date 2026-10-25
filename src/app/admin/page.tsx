@@ -27,12 +27,15 @@ export default async function AdminPage() {
   ]);
   const pending = awaiting.filter((c) => c.status === "pending");
   const changesRequested = awaiting.filter((c) => c.status === "changes_requested");
+  const awaitingBeneficiary = awaiting.filter((c) => c.status === "awaiting_beneficiary");
   // Pending ones are already listed above, with their documents.
   const toCheck = withDocuments.filter((c) => !c.documentsCheckedAt && c.status !== "closed" && c.status !== "pending");
   const paused = items.filter((x) => x.campaign.status === "paused");
   // Live or already completed by the organiser, with open reports.
   const reported = items.filter((x) => x.campaign.status === "active" || x.campaign.status === "completed");
-  const closed = items.filter((x) => x.campaign.status === "closed");
+  // The beneficiary said "This isn't me / I don't agree", which closed it.
+  const declined = items.filter((x) => x.campaign.status === "closed" && x.campaign.beneficiaryDeclinedAt);
+  const closed = items.filter((x) => x.campaign.status === "closed" && !x.campaign.beneficiaryDeclinedAt);
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">
@@ -40,9 +43,20 @@ export default async function AdminPage() {
       <h1 className="pt-4 text-2xl font-extrabold tracking-tight">Admin review</h1>
       <p className="mt-1 text-muted">Approvals, documents, and reported or paused harambees. Reporters are never shown.</p>
 
+      {declined.length > 0 && (
+        <ShortSection
+          title="Declined by the beneficiary"
+          note="The person it was for said it isn’t theirs or they don’t agree. Closed automatically; check the organiser."
+          campaigns={declined.map((x) => x.campaign)}
+          empty=""
+        />
+      )}
       <ShortSection title="Waiting for approval" campaigns={pending} empty="No harambees waiting for approval." />
       {changesRequested.length > 0 && (
         <ShortSection title="Changes requested" campaigns={changesRequested} empty="" />
+      )}
+      {awaitingBeneficiary.length > 0 && (
+        <ShortSection title="Waiting for the beneficiary" campaigns={awaitingBeneficiary} empty="" />
       )}
       <ShortSection title="Documents to check" campaigns={toCheck} empty="No documents waiting to be checked." />
 
@@ -54,12 +68,15 @@ export default async function AdminPage() {
 }
 
 // A campaign per row, linking to its review page (src/app/admin/campaigns/[id]).
-function ShortSection({ title, campaigns, empty }: { title: string; campaigns: Campaign[]; empty: string }) {
+type ShortSectionProps = { title: string; note?: string; campaigns: Campaign[]; empty: string };
+
+function ShortSection({ title, note, campaigns, empty }: ShortSectionProps) {
   return (
     <section className="mt-8">
       <h2 className="text-lg font-bold">
         {title} <span className="font-medium text-muted">({campaigns.length})</span>
       </h2>
+      {note && <p className="mt-0.5 text-sm text-muted">{note}</p>}
       {campaigns.length === 0 ? (
         <p className="mt-2 text-muted">{empty}</p>
       ) : (
@@ -74,6 +91,12 @@ function ShortSection({ title, campaigns, empty }: { title: string; campaigns: C
                 <span className="mt-0.5 block text-sm text-muted">
                   {c.category} · by {c.organiser} · goal {formatKES(c.goal)}
                 </span>
+                {c.beneficiaryIsMinor && (
+                  <span className="mt-1 block text-sm font-semibold">For a child (under 18)</span>
+                )}
+                {c.beneficiaryDeclinedAt && (
+                  <span className="mt-1 block text-sm font-semibold">Declined {shortDate(c.beneficiaryDeclinedAt)}</span>
+                )}
                 {c.status === "changes_requested" && c.changesRequestedReason && (
                   <span className="mt-1 block truncate text-sm">You asked: {c.changesRequestedReason}</span>
                 )}

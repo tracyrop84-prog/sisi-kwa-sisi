@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AdminActions from "@/app/admin/AdminActions";
+import BeneficiaryVerifiedBadge from "@/components/BeneficiaryVerifiedBadge";
 import ChallengeLeaderboard from "@/components/ChallengeLeaderboard";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
@@ -14,11 +15,14 @@ import ReportLink from "@/components/ReportLink";
 import StatusBanner from "@/components/StatusBanner";
 import SiteHeader from "@/components/SiteHeader";
 import UpdatesTimeline from "@/components/UpdatesTimeline";
+import ViralVideoCard from "@/components/ViralVideoCard";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
+import BeneficiaryLinkPanel from "./BeneficiaryLinkPanel";
 import CloseHarambeeButton from "./CloseHarambeeButton";
 import ResubmitButton from "./ResubmitButton";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { canEditDetails, getCampaign } from "@/lib/campaigns";
+import { getBeneficiaryLink } from "@/lib/beneficiaries";
+import { canEditDetails, getCampaign, UNPUBLISHED_STATUSES } from "@/lib/campaigns";
 import {
   challengeState,
   getCampaignChallenges,
@@ -79,8 +83,11 @@ export default async function CampaignPage({ params, searchParams }: Props) {
   const open = campaign.status === "active";
   const closed = campaign.status === "closed";
   const underReview = campaign.status === "paused" || closed;
-  // Waiting for approval or for changes: only the organiser and admins get here.
-  const unpublished = campaign.status === "pending" || campaign.status === "changes_requested";
+  // Waiting for approval, changes or the beneficiary: only the organiser and admins get here.
+  const unpublished = UNPUBLISHED_STATUSES.includes(campaign.status);
+  // Only the organiser (and admins) can read the link's details.
+  const beneficiaryLink =
+    isOrganiser && campaign.status === "awaiting_beneficiary" ? await getBeneficiaryLink(campaign.id) : null;
   const liveChallenges = challenges
     .filter((c) => challengeState(c, now) === "live")
     .sort((a, b) => b.raised - a.raised);
@@ -116,6 +123,22 @@ export default async function CampaignPage({ params, searchParams }: Props) {
 
       <StatusBanner campaign={campaign} />
       {isOrganiser && campaign.status === "changes_requested" && <ResubmitButton slug={campaign.slug} />}
+      {isOrganiser && campaign.status === "awaiting_beneficiary" && (
+        <BeneficiaryLinkPanel
+          slug={campaign.slug}
+          minor={campaign.beneficiaryIsMinor}
+          link={
+            beneficiaryLink && {
+              name: beneficiaryLink.name,
+              relationship: beneficiaryLink.relationship,
+              phone: beneficiaryLink.phone,
+              sent: kenyaTime(beneficiaryLink.sentAt),
+              expires: kenyaTime(beneficiaryLink.linkExpiresAt),
+              expired: new Date(beneficiaryLink.linkExpiresAt).getTime() < now,
+            }
+          }
+        />
+      )}
       {isOrganiser && underReview && (
         <div className="mt-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           {closed ? (
@@ -199,11 +222,13 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           organising this harambee for{" "}
           <span className="font-semibold text-text">{campaign.beneficiary}</span>
         </p>
-        {campaign.documentsCheckedAt && !closed && (
-          <p className="mt-2">
-            <DocumentsCheckedBadge />
+        {!closed && (campaign.beneficiaryConfirmedAt || campaign.documentsCheckedAt) && (
+          <p className="mt-2 flex flex-wrap gap-2">
+            {campaign.beneficiaryConfirmedAt && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} />}
+            {campaign.documentsCheckedAt && <DocumentsCheckedBadge />}
           </p>
         )}
+        {campaign.viralVideoUrl && <ViralVideoCard url={campaign.viralVideoUrl} />}
 
         <div className="mt-5 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           <ProgressBar
@@ -414,6 +439,17 @@ export default async function CampaignPage({ params, searchParams }: Props) {
       )}
     </main>
   );
+}
+
+// e.g. "25 Oct, 3:15 pm", in Kenyan time whatever the server's time zone.
+function kenyaTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-KE", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Africa/Nairobi",
+  });
 }
 
 type MyChallengeProps = { challenge: Challenge; state: ChallengeState; now: number; ended: boolean };

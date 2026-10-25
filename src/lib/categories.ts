@@ -1,6 +1,7 @@
 // Campaign categories, each with an icon for the create form and the label its
 // progress updates use. Medical campaigns get recovery updates instead of
-// progress updates. Keep in sync with the category check in supabase/campaigns.sql.
+// progress updates. Keep in sync with the category check in
+// supabase/viral_any_category.sql.
 
 export const CATEGORY_INFO = {
   Medical: { icon: "🏥", progress: null },
@@ -15,6 +16,7 @@ export const CATEGORY_INFO = {
   Farming: { icon: "🌱", progress: "Farm progress" },
   Housing: { icon: "🏠", progress: "Building progress" },
   "Sports & Youth": { icon: "⚽", progress: "Team progress" },
+  Talent: { icon: "🎤", progress: "Talent progress" },
   "Elder Care": { icon: "🧓", progress: "Care updates" },
   Other: { icon: "✨", progress: "Progress" },
 } as const satisfies Record<string, { icon: string; progress: string | null }>;

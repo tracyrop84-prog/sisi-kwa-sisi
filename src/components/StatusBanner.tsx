@@ -2,12 +2,14 @@ import { APPROVAL_GOAL } from "@/lib/campaignRules";
 import type { Campaign } from "@/lib/campaigns";
 import { formatKES } from "@/lib/format";
 
-type Props = { campaign: Pick<Campaign, "status" | "raised" | "donorCount" | "changesRequestedReason"> };
+type Props = {
+  campaign: Pick<Campaign, "status" | "raised" | "donorCount" | "changesRequestedReason" | "beneficiaryDeclinedAt">;
+};
 
-// Shown on a paused, closed, completed or not-yet-approved campaign and its
+// Shown on a paused, closed, completed or not-yet-live campaign and its
 // challenges. Review notices use the soft blue with an info icon; an ended
 // harambee gets a warm thank-you. Only the organiser and admins can open a
-// campaign that isn't approved yet.
+// campaign that isn't live yet.
 export default function StatusBanner({ campaign }: Props) {
   if (campaign.status === "active") return null;
 
@@ -30,7 +32,15 @@ export default function StatusBanner({ campaign }: Props) {
         <path d="M10 9v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <circle cx="10" cy="6.2" r="1" fill="currentColor" />
       </svg>
-      {campaign.status === "pending" ? (
+      {campaign.status === "awaiting_beneficiary" ? (
+        <div>
+          <p className="font-bold">Waiting for confirmation</p>
+          <p className="mt-1 text-sm text-muted">
+            We’ve texted the person you’re raising for. It goes live once they confirm. Until then only you can see it,
+            and it can’t be edited, so they agree to exactly what they read.
+          </p>
+        </div>
+      ) : campaign.status === "pending" ? (
         <div>
           <p className="font-bold">Waiting for approval</p>
           <p className="mt-1 text-sm text-muted">
@@ -50,6 +60,13 @@ export default function StatusBanner({ campaign }: Props) {
         <div>
           <p className="font-bold">Donations are paused while we review this harambee</p>
           <p className="mt-1 text-sm text-muted">Donations already made are still recorded.</p>
+        </div>
+      ) : campaign.beneficiaryDeclinedAt ? (
+        <div>
+          <p className="font-bold">This harambee has been closed</p>
+          <p className="mt-1 text-sm text-muted">
+            The person it was for told us it isn’t theirs or they don’t agree to it. It never took donations.
+          </p>
         </div>
       ) : (
         <div>

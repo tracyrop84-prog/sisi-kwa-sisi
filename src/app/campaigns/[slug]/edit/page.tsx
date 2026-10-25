@@ -43,9 +43,11 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
         <p className="rounded-2xl bg-surface p-4 text-muted shadow-sm ring-1 ring-black/5">
           {campaign.status === "paused"
             ? "You can’t edit this harambee while it’s under review."
-            : campaign.status === "completed"
-              ? "This harambee has ended, so its details can’t be changed. You can still post updates."
-              : "This harambee has been closed and can’t be edited."}
+            : campaign.status === "awaiting_beneficiary"
+              ? "You can’t edit this harambee while we wait for the person it’s for to confirm it."
+              : campaign.status === "completed"
+                ? "This harambee has ended, so its details can’t be changed. You can still post updates."
+                : "This harambee has been closed and can’t be edited."}
         </p>
       ) : (
         <>
@@ -59,6 +61,17 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
           {campaign.donorCount > 0 && (
             <p className="mb-5 text-sm text-muted">
               Donors can see that the harambee was edited, and our team keeps a record of every change.
+            </p>
+          )}
+          {campaign.beneficiaryConfirmedAt && (
+            <p className="mb-5 text-sm text-muted">
+              If you change the story or goal, we’ll text{" "}
+              {campaign.beneficiaryConfirmedName ?? "the child’s parent or guardian"} to let them know.
+            </p>
+          )}
+          {campaign.beneficiaryIsMinor && (
+            <p className="mb-5 text-sm text-muted">
+              Don’t add the name of the child’s school or where they live. A town or county is enough.
             </p>
           )}
           {cover === "failed" && (
@@ -77,7 +90,7 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
               location: campaign.location,
               story: campaign.story,
             }}
-            beneficiaryLocked={campaign.donorCount > 0}
+            beneficiaryLocked={campaign.donorCount > 0 || campaign.beneficiaryConfirmedAt !== null}
             coverPhoto={campaign.coverPhoto}
             goal={goal}
           />
