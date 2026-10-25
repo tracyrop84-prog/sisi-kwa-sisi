@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BeneficiaryVerifiedBadge from "@/components/BeneficiaryVerifiedBadge";
+import DemoBadge from "@/components/DemoBadge";
 import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
@@ -25,6 +26,12 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
       )}
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {campaign.category} · {campaign.location}
+        {campaign.isDemo && (
+          <>
+            {" "}
+            <DemoBadge />
+          </>
+        )}
       </p>
       {campaign.status === "paused" && (
         <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">

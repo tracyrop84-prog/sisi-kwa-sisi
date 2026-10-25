@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "demo:seed": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/demo/seed.mjs",
+    "demo:remove": "node --env-file=.env.local scripts/demo/remove.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

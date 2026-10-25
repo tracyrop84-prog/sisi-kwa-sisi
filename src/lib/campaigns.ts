@@ -59,11 +59,12 @@ export type Campaign = {
   beneficiaryConfirmedName: string | null; // for the "Verified" badge; null for under-18s, whose guardian stays private
   beneficiaryConfirmedAt: string | null; // shows the "Verified" badge
   beneficiaryDeclinedAt: string | null; // the beneficiary said no, which closed it
+  isDemo: boolean; // made by scripts/demo/seed.mjs, shown with a "Demo" label
   createdAt: string;
 };
 
 const COLUMNS =
-  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, cover_photo, status, paused_at, closed_at, completed_at, changes_requested_reason, documents_checked_at, last_edited_at, viral_video_url, beneficiary_confirmation, beneficiary_is_minor, beneficiary_confirmed_name, beneficiary_confirmed_at, beneficiary_declined_at, created_at";
+  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, cover_photo, status, paused_at, closed_at, completed_at, changes_requested_reason, documents_checked_at, last_edited_at, viral_video_url, beneficiary_confirmation, beneficiary_is_minor, beneficiary_confirmed_name, beneficiary_confirmed_at, beneficiary_declined_at, is_demo, created_at";
 
 type Row = {
   id: string;
@@ -92,6 +93,7 @@ type Row = {
   beneficiary_confirmed_name: string | null;
   beneficiary_confirmed_at: string | null;
   beneficiary_declined_at: string | null;
+  is_demo: boolean;
   created_at: string;
 };
 
@@ -111,6 +113,7 @@ function fromRow({
   beneficiary_confirmed_name,
   beneficiary_confirmed_at,
   beneficiary_declined_at,
+  is_demo,
   created_at,
   ...rest
 }: Row): Campaign {
@@ -131,6 +134,7 @@ function fromRow({
     beneficiaryConfirmedName: beneficiary_confirmed_name,
     beneficiaryConfirmedAt: beneficiary_confirmed_at,
     beneficiaryDeclinedAt: beneficiary_declined_at,
+    isDemo: is_demo,
     createdAt: created_at,
   };
 }

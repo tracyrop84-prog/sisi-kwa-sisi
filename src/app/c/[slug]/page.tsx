@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import ChallengeProgress from "@/components/ChallengeProgress";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import Countdown from "@/components/Countdown";
+import DemoBadge from "@/components/DemoBadge";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
@@ -136,6 +137,12 @@ export default async function ChallengePage({ params, searchParams }: Props) {
       <article className="pt-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
           {type.name} · {type.tagline}
+          {campaign.isDemo && (
+            <>
+              {" "}
+              <DemoBadge />
+            </>
+          )}
         </p>
         <h1 className="mt-1 text-3xl font-extrabold leading-tight tracking-tight">{challengeTitle(challenge)}</h1>
         <p className="mt-2 text-sm text-muted">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AdminActions from "@/app/admin/AdminActions";
 import BeneficiaryVerifiedBadge from "@/components/BeneficiaryVerifiedBadge";
+import DemoBadge from "@/components/DemoBadge";
 import ChallengeLeaderboard from "@/components/ChallengeLeaderboard";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
@@ -213,6 +214,12 @@ export default async function CampaignPage({ params, searchParams }: Props) {
         )}
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
           {campaign.category} · {campaign.location}
+          {campaign.isDemo && (
+            <>
+              {" "}
+              <DemoBadge />
+            </>
+          )}
         </p>
         <h1 className="mt-1 text-3xl font-extrabold leading-tight tracking-tight">
           {campaign.title}
