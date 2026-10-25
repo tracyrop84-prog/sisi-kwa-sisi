@@ -10,6 +10,7 @@ import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { getBeneficiaryLink, getOtherCampaignIdsForPayoutPhone, getPayoutPhone } from "@/lib/beneficiaries";
+import { MINOR_PHOTO_CONSENT } from "@/lib/campaignRules";
 import { getCampaignById, getCampaignsByIds, type CampaignStatus } from "@/lib/campaigns";
 import { getDocuments } from "@/lib/documents";
 import { EDIT_FIELD_LABELS, getCampaignEdits, type CampaignEdit } from "@/lib/editHistory";
@@ -89,7 +90,10 @@ export default async function AdminCampaignPage({ params }: Props) {
         {/* Private: only the organiser and admins can read verified numbers. */}
         <dd>{phone ? `${formatKenyanPhone(phone)} ✓` : "Not verified"}</dd>
         <dt className="text-muted">For</dt>
-        <dd>{c.beneficiary}</dd>
+        <dd>
+          {c.beneficiary}
+          {c.beneficiaryIsMinor && <span className="font-semibold"> · under 18</span>}
+        </dd>
         <dt className="text-muted">Location</dt>
         <dd>{c.location}</dd>
         {c.viralVideoUrl && (
@@ -109,6 +113,12 @@ export default async function AdminCampaignPage({ params }: Props) {
       {c.status === "pending" && (
         <section className="mt-6 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           <h2 className="font-bold">Approval</h2>
+          {c.beneficiaryIsMinor && (
+            <p className="mt-1 rounded-xl bg-accent/10 px-3 py-2 text-sm">
+              <span className="font-semibold">For a child.</span> Check the title, story, location and photos don’t show
+              their school or where they live. The organiser accepted: “{MINOR_PHOTO_CONSENT}”
+            </p>
+          )}
           {c.changesRequestedReason ? (
             <p className="mt-1 text-sm">
               <span className="text-muted">Resubmitted. You asked: </span>
@@ -129,13 +139,21 @@ export default async function AdminCampaignPage({ params }: Props) {
       )}
       {c.beneficiaryConfirmation && (
         <section className="mt-6 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
-          <h2 className="font-bold">Beneficiary</h2>
+          <h2 className="font-bold">{c.beneficiaryIsMinor ? "Parent or guardian" : "Beneficiary"}</h2>
           {payout ? (
             <>
               <p className="mt-2">
-                <BeneficiaryVerifiedBadge name={payout.name} />
+                <BeneficiaryVerifiedBadge name={c.beneficiaryConfirmedName} />
               </p>
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                {payout.relationship && (
+                  <>
+                    <dt className="text-muted">Guardian</dt>
+                    <dd>
+                      {payout.name} ({payout.relationship})
+                    </dd>
+                  </>
+                )}
                 <dt className="text-muted">Payout number</dt>
                 {/* Private: only admins can read payout numbers, and nobody can change them. */}
                 <dd>{formatKenyanPhone(payout.phone)} ✓</dd>
@@ -164,7 +182,10 @@ export default async function AdminCampaignPage({ params }: Props) {
           ) : link ? (
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted">Name</dt>
-              <dd>{link.name}</dd>
+              <dd>
+                {link.name}
+                {link.relationship && ` (${link.relationship})`}
+              </dd>
               <dt className="text-muted">Number</dt>
               <dd>{formatKenyanPhone(link.phone)}</dd>
               <dt className="text-muted">{link.outcome === "declined" ? "Declined" : "Last SMS"}</dt>

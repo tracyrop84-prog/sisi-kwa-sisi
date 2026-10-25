@@ -63,9 +63,15 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
               Donors can see that the harambee was edited, and our team keeps a record of every change.
             </p>
           )}
-          {campaign.beneficiaryConfirmedName && (
+          {campaign.beneficiaryConfirmedAt && (
             <p className="mb-5 text-sm text-muted">
-              If you change the story or goal, we’ll text {campaign.beneficiaryConfirmedName} to let them know.
+              If you change the story or goal, we’ll text{" "}
+              {campaign.beneficiaryConfirmedName ?? "the child’s parent or guardian"} to let them know.
+            </p>
+          )}
+          {campaign.beneficiaryIsMinor && (
+            <p className="mb-5 text-sm text-muted">
+              Don’t add the name of the child’s school or where they live. A town or county is enough.
             </p>
           )}
           {cover === "failed" && (

@@ -12,13 +12,14 @@ const inputClass =
 
 type Props = {
   slug: string;
+  minor: boolean; // under 18: the link goes to a parent or guardian
   // null when no SMS has gone out yet (sending failed when the harambee was created).
   // sent and expires are already formatted, so server and browser agree.
-  link: { name: string; phone: string; sent: string; expires: string; expired: boolean } | null;
+  link: { name: string; relationship: string | null; phone: string; sent: string; expires: string; expired: boolean } | null;
 };
 
 // For the organiser while the harambee waits for its beneficiary to confirm.
-export default function BeneficiaryLinkPanel({ slug, link }: Props) {
+export default function BeneficiaryLinkPanel({ slug, minor, link }: Props) {
   const [state, formAction, pending] = useActionState(beneficiaryLinkAction, initialState);
   const editing = state.editing || !link;
 
@@ -26,7 +27,10 @@ export default function BeneficiaryLinkPanel({ slug, link }: Props) {
     <div className="mt-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
       {link ? (
         <>
-          <p className="font-bold">Waiting for {link.name} to confirm</p>
+          <p className="font-bold">
+            Waiting for {link.name}
+            {link.relationship && ` (${link.relationship.toLowerCase()})`} to confirm
+          </p>
           <p className="mt-1 text-sm text-muted">
             We texted {formatKenyanPhone(link.phone)} on {link.sent}.{" "}
             {link.expired ? "The link has expired, so send a new one." : `The link works until ${link.expires}.`}{" "}
@@ -35,7 +39,9 @@ export default function BeneficiaryLinkPanel({ slug, link }: Props) {
         </>
       ) : (
         <>
-          <p className="font-bold">We couldn’t text the person you’re raising for</p>
+          <p className="font-bold">
+            {minor ? "We couldn’t text the child’s parent or guardian" : "We couldn’t text the person you’re raising for"}
+          </p>
           <p className="mt-1 text-sm text-muted">Enter their details to send the confirmation SMS.</p>
         </>
       )}
@@ -50,11 +56,30 @@ export default function BeneficiaryLinkPanel({ slug, link }: Props) {
         {editing ? (
           <>
             <div>
-              <label htmlFor="beneficiary-link-name" className="text-sm font-semibold">Their full name</label>
+              <label htmlFor="beneficiary-link-name" className="text-sm font-semibold">
+                {minor ? "Parent or guardian’s full name" : "Their full name"}
+              </label>
               <input id="beneficiary-link-name" name="name" defaultValue={link?.name} className={inputClass} maxLength={100} />
             </div>
+            {minor && (
+              <div>
+                <label htmlFor="beneficiary-link-relationship" className="text-sm font-semibold">
+                  Relationship to the child
+                </label>
+                <input
+                  id="beneficiary-link-relationship"
+                  name="relationship"
+                  defaultValue={link?.relationship ?? undefined}
+                  placeholder="e.g. Mother, Grandfather, Aunt"
+                  className={inputClass}
+                  maxLength={50}
+                />
+              </div>
+            )}
             <div>
-              <label htmlFor="beneficiary-link-phone" className="text-sm font-semibold">Their phone number</label>
+              <label htmlFor="beneficiary-link-phone" className="text-sm font-semibold">
+                {minor ? "Parent or guardian’s phone number" : "Their phone number"}
+              </label>
               <input
                 id="beneficiary-link-phone"
                 name="phone"

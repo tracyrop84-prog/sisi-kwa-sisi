@@ -55,14 +55,15 @@ export type Campaign = {
   lastEditedAt: string | null; // title, story or location changed after the first donation
   viralVideoUrl: string | null; // Business & Empowerment only, see src/lib/videoLinks.ts
   beneficiaryConfirmation: boolean; // waits for, or got, the beneficiary's confirmation
-  beneficiaryConfirmedName: string | null; // shows the "Verified" badge
-  beneficiaryConfirmedAt: string | null;
+  beneficiaryIsMinor: boolean; // under 18: a parent or guardian confirms, and admins always approve
+  beneficiaryConfirmedName: string | null; // for the "Verified" badge; null for under-18s, whose guardian stays private
+  beneficiaryConfirmedAt: string | null; // shows the "Verified" badge
   beneficiaryDeclinedAt: string | null; // the beneficiary said no, which closed it
   createdAt: string;
 };
 
 const COLUMNS =
-  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, cover_photo, status, paused_at, closed_at, completed_at, changes_requested_reason, documents_checked_at, last_edited_at, viral_video_url, beneficiary_confirmation, beneficiary_confirmed_name, beneficiary_confirmed_at, beneficiary_declined_at, created_at";
+  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, cover_photo, status, paused_at, closed_at, completed_at, changes_requested_reason, documents_checked_at, last_edited_at, viral_video_url, beneficiary_confirmation, beneficiary_is_minor, beneficiary_confirmed_name, beneficiary_confirmed_at, beneficiary_declined_at, created_at";
 
 type Row = {
   id: string;
@@ -87,6 +88,7 @@ type Row = {
   last_edited_at: string | null;
   viral_video_url: string | null;
   beneficiary_confirmation: boolean;
+  beneficiary_is_minor: boolean;
   beneficiary_confirmed_name: string | null;
   beneficiary_confirmed_at: string | null;
   beneficiary_declined_at: string | null;
@@ -105,6 +107,7 @@ function fromRow({
   last_edited_at,
   viral_video_url,
   beneficiary_confirmation,
+  beneficiary_is_minor,
   beneficiary_confirmed_name,
   beneficiary_confirmed_at,
   beneficiary_declined_at,
@@ -124,6 +127,7 @@ function fromRow({
     lastEditedAt: last_edited_at,
     viralVideoUrl: viral_video_url,
     beneficiaryConfirmation: beneficiary_confirmation,
+    beneficiaryIsMinor: beneficiary_is_minor,
     beneficiaryConfirmedName: beneficiary_confirmed_name,
     beneficiaryConfirmedAt: beneficiary_confirmed_at,
     beneficiaryDeclinedAt: beneficiary_declined_at,
@@ -228,24 +232,37 @@ export type NewCampaign = Pick<
   | "story"
   | "viralVideoUrl"
   | "beneficiaryConfirmation"
+  | "beneficiaryIsMinor"
 >;
 
-// Our own codes, plus the ones raised by supabase/reports.sql and
-// supabase/organiser_verification.sql.
+// Our own codes, plus the ones raised by supabase/reports.sql,
+// supabase/organiser_verification.sql and supabase/minor_beneficiaries.sql.
 export type CreateError =
   | "not-logged-in"
   | "email-not-confirmed"
   | "declaration_required"
   | "campaign_limit"
   | "phone_not_verified"
-  | "goal_too_high";
+  | "goal_too_high"
+  | "minor_consent_required";
 
-const CREATE_ERRORS = new Set<string>(["declaration_required", "campaign_limit", "phone_not_verified", "goal_too_high"]);
+const CREATE_ERRORS = new Set<string>([
+  "declaration_required",
+  "campaign_limit",
+  "phone_not_verified",
+  "goal_too_high",
+  "minor_consent_required",
+]);
 
 export type CreateResult = { campaign: Campaign } | { error: CreateError };
 
-// declaration is the exact text the organiser ticked; the database stamps the time.
-export async function createCampaign(input: NewCampaign, declaration: string): Promise<CreateResult> {
+// declaration (and minorPhotoConsent, for under-18s) is the exact text the
+// organiser ticked; the database stamps the time.
+export async function createCampaign(
+  input: NewCampaign,
+  declaration: string,
+  minorPhotoConsent: string | null = null,
+): Promise<CreateResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -253,13 +270,15 @@ export async function createCampaign(input: NewCampaign, declaration: string): P
   if (!user) return { error: "not-logged-in" };
   if (!user.email_confirmed_at) return { error: "email-not-confirmed" };
 
-  const { viralVideoUrl, beneficiaryConfirmation, ...details } = input;
+  const { viralVideoUrl, beneficiaryConfirmation, beneficiaryIsMinor, ...details } = input;
   const { data, error } = await supabase
     .from("campaigns")
     .insert({
       ...details,
       viral_video_url: viralVideoUrl,
       beneficiary_confirmation: beneficiaryConfirmation,
+      beneficiary_is_minor: beneficiaryIsMinor,
+      minor_photo_consent: minorPhotoConsent,
       declaration,
       slug: await uniqueSlug(input.title),
       organiser_id: user.id,

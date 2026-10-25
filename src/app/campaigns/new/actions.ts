@@ -7,6 +7,7 @@ import {
   goalCapMessage,
   goalError,
   MAX_OPEN_CAMPAIGNS,
+  MINOR_PHOTO_CONSENT,
   NEW_ORGANISER_MAX_GOAL,
 } from "@/lib/campaignRules";
 import { getCurrentUser } from "@/lib/auth";
@@ -37,7 +38,10 @@ type Field =
   | "videoUrl"
   | "confirmBeneficiary"
   | "beneficiaryName"
-  | "beneficiaryPhone";
+  | "beneficiaryRelationship"
+  | "beneficiaryPhone"
+  | "minor"
+  | "minorConsent";
 
 function friendlyError(code: CreateError): string {
   switch (code) {
@@ -51,6 +55,8 @@ function friendlyError(code: CreateError): string {
       return "Please verify your phone number first.";
     case "goal_too_high":
       return goalCapMessage(NEW_ORGANISER_MAX_GOAL);
+    case "minor_consent_required":
+      return "Please tick the box to confirm you have consent to share the child’s story and photos.";
     default:
       return "You’ve been logged out. Please log in again, then submit.";
   }
@@ -84,7 +90,10 @@ export async function createCampaignAction(
     videoUrl: String(formData.get("videoUrl") ?? "").trim(),
     confirmBeneficiary: formData.get("confirmBeneficiary") === "on" ? "on" : "",
     beneficiaryName: String(formData.get("beneficiaryName") ?? "").trim().replace(/\s+/g, " "),
+    beneficiaryRelationship: String(formData.get("beneficiaryRelationship") ?? "").trim().replace(/\s+/g, " "),
     beneficiaryPhone: String(formData.get("beneficiaryPhone") ?? "").trim(),
+    minor: formData.get("minor") === "on" ? "on" : "",
+    minorConsent: formData.get("minorConsent") === "on" ? "on" : "",
   };
 
   const errors: FormState["errors"] = campaignDetailErrors(values);
@@ -96,17 +105,25 @@ export async function createCampaignAction(
   const goalProblem = goalError(goal);
   if (goalProblem) errors.goal = goalProblem;
 
-  // Viral harambees always need the beneficiary's confirmation; others can ask for it.
+  // Viral and under-18 harambees always need confirmation (for under-18s, by a
+  // parent or guardian); others can ask for it.
   const viral = values.viral === "on" && values.category === VIRAL_CATEGORY;
+  const minor = values.minor === "on";
   const videoUrl = viral ? normaliseVideoUrl(values.videoUrl) : null;
   if (viral && !videoUrl) errors.videoUrl = "Paste the link to the video on TikTok, Facebook, Instagram or YouTube.";
-  const confirming = viral || values.confirmBeneficiary === "on";
+  const confirming = viral || minor || values.confirmBeneficiary === "on";
   const beneficiaryPhone = confirming ? normaliseKenyanPhone(values.beneficiaryPhone) : null;
   if (confirming) {
     if (values.beneficiaryName.length < 2 || values.beneficiaryName.length > 100) {
       errors.beneficiaryName = "Enter their full name, as they’d recognise it.";
     }
     if (!beneficiaryPhone) errors.beneficiaryPhone = beneficiaryPhoneError("invalid_phone");
+  }
+  if (minor) {
+    if (values.beneficiaryRelationship.length < 2 || values.beneficiaryRelationship.length > 50) {
+      errors.beneficiaryRelationship = "How are they related to the child? e.g. Mother";
+    }
+    if (!values.minorConsent) errors.minorConsent = friendlyError("minor_consent_required");
   }
 
   if (Object.keys(errors).length > 0) return { errors, values };
@@ -115,7 +132,7 @@ export async function createCampaignAction(
   if (beneficiaryPhone) {
     const user = await getCurrentUser();
     if (!user) return { errors: {}, values, formError: friendlyError("not-logged-in") };
-    const problem = await checkBeneficiaryPhone(user.id, beneficiaryPhone, viral);
+    const problem = await checkBeneficiaryPhone(user.id, beneficiaryPhone, { viral, minor });
     if (problem) return { errors: { beneficiaryPhone: beneficiaryPhoneError(problem) }, values };
   }
 
@@ -130,9 +147,11 @@ export async function createCampaignAction(
       story: values.story,
       viralVideoUrl: videoUrl,
       beneficiaryConfirmation: confirming,
+      beneficiaryIsMinor: minor,
     },
-    // The server's copy of the text, so what's stored is exactly what the form shows.
+    // The server's copies of the text, so what's stored is exactly what the form shows.
     CAMPAIGN_DECLARATION,
+    minor ? MINOR_PHOTO_CONSENT : null,
   );
   if ("error" in result) {
     if (result.error === "goal_too_high") return { errors: { goal: friendlyError(result.error) }, values };
@@ -142,7 +161,12 @@ export async function createCampaignAction(
   // If this fails, the harambee page lets the organiser send it again.
   if (beneficiaryPhone && result.campaign.status === "awaiting_beneficiary") {
     try {
-      const sent = await sendBeneficiaryLink(result.campaign, values.beneficiaryName, beneficiaryPhone);
+      const sent = await sendBeneficiaryLink(
+        result.campaign,
+        values.beneficiaryName,
+        beneficiaryPhone,
+        minor ? values.beneficiaryRelationship : null,
+      );
       if ("error" in sent) console.error("sendBeneficiaryLink refused:", sent.error);
     } catch (error) {
       console.error("sendBeneficiaryLink failed:", error);

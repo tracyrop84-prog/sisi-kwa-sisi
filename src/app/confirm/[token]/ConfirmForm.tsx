@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import ErrorMessage from "@/components/ErrorMessage";
-import { BENEFICIARY_AGREEMENT } from "@/lib/campaignRules";
+import { BENEFICIARY_AGREEMENT, GUARDIAN_AGREEMENT } from "@/lib/campaignRules";
 import { formatKES } from "@/lib/format";
 import { PHONE_CODE_LENGTH, PHONE_CODE_RESEND_SECONDS } from "@/lib/phone";
 import { confirmAction, type ConfirmState } from "./actions";
@@ -46,8 +46,10 @@ export default function ConfirmForm({ token }: { token: string }) {
           <>
             <p className="font-bold">Asante, {h.name}!</p>
             <p className="mt-1 text-sm text-muted">
-              Because the goal is large, our team checks this harambee before it goes live. The organiser will be able
-              to share it once it’s approved.
+              {h.minor
+                ? "Our team checks every harambee for a child before it goes live."
+                : "Because the goal is large, our team checks this harambee before it goes live."}{" "}
+              The organiser will be able to share it once it’s approved.
             </p>
           </>
         ) : state.outcome === "declined" ? (
@@ -97,8 +99,14 @@ export default function ConfirmForm({ token }: { token: string }) {
         <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           <p className="text-sm text-muted">
             Organised by <span className="font-semibold text-text">{h.organiser}</span> for{" "}
-            <span className="font-semibold text-text">{h.name}</span>
+            <span className="font-semibold text-text">{h.minor ? h.child : h.name}</span>
           </p>
+          {h.minor && (
+            <p className="mt-1 text-sm text-muted">
+              You’re confirming as their {h.relationship?.toLowerCase() ?? "parent or guardian"},{" "}
+              <span className="font-semibold text-text">{h.name}</span>.
+            </p>
+          )}
           <p className="mt-2 text-sm text-muted">
             Goal: <span className="font-semibold text-text">{formatKES(h.goal)}</span>
           </p>
@@ -113,7 +121,8 @@ export default function ConfirmForm({ token }: { token: string }) {
         </section>
 
         <p className="text-sm text-muted">
-          Once you confirm, the money raised can only be paid to the number this SMS was sent to.
+          Once you confirm, the money raised can only be paid to the number this SMS was sent to
+          {h.minor ? ", for the child’s needs" : ""}.
         </p>
 
         <div>
@@ -125,7 +134,7 @@ export default function ConfirmForm({ token }: { token: string }) {
               aria-describedby={state.error ? "confirm-error" : undefined}
               className="mt-1 h-4 w-4 shrink-0 accent-accent"
             />
-            <span className="text-sm font-semibold">{BENEFICIARY_AGREEMENT}</span>
+            <span className="text-sm font-semibold">{h.minor ? GUARDIAN_AGREEMENT : BENEFICIARY_AGREEMENT}</span>
           </label>
           {state.error && <ErrorMessage id="confirm-error">{state.error}</ErrorMessage>}
         </div>

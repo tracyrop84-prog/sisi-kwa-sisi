@@ -126,9 +126,11 @@ export default async function CampaignPage({ params, searchParams }: Props) {
       {isOrganiser && campaign.status === "awaiting_beneficiary" && (
         <BeneficiaryLinkPanel
           slug={campaign.slug}
+          minor={campaign.beneficiaryIsMinor}
           link={
             beneficiaryLink && {
               name: beneficiaryLink.name,
+              relationship: beneficiaryLink.relationship,
               phone: beneficiaryLink.phone,
               sent: kenyaTime(beneficiaryLink.sentAt),
               expires: kenyaTime(beneficiaryLink.linkExpiresAt),
@@ -220,9 +222,9 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           organising this harambee for{" "}
           <span className="font-semibold text-text">{campaign.beneficiary}</span>
         </p>
-        {!closed && (campaign.beneficiaryConfirmedName || campaign.documentsCheckedAt) && (
+        {!closed && (campaign.beneficiaryConfirmedAt || campaign.documentsCheckedAt) && (
           <p className="mt-2 flex flex-wrap gap-2">
-            {campaign.beneficiaryConfirmedName && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} />}
+            {campaign.beneficiaryConfirmedAt && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} />}
             {campaign.documentsCheckedAt && <DocumentsCheckedBadge />}
           </p>
         )}

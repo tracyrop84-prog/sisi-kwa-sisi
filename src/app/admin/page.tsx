@@ -91,6 +91,9 @@ function ShortSection({ title, note, campaigns, empty }: ShortSectionProps) {
                 <span className="mt-0.5 block text-sm text-muted">
                   {c.category} · by {c.organiser} · goal {formatKES(c.goal)}
                 </span>
+                {c.beneficiaryIsMinor && (
+                  <span className="mt-1 block text-sm font-semibold">For a child (under 18)</span>
+                )}
                 {c.beneficiaryDeclinedAt && (
                   <span className="mt-1 block text-sm font-semibold">Declined {shortDate(c.beneficiaryDeclinedAt)}</span>
                 )}

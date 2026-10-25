@@ -28,12 +28,18 @@ export type BeneficiaryPhoneError = "invalid_phone" | "own_phone" | "beneficiary
 const PHONE_ERRORS = new Set<string>(["invalid_phone", "own_phone", "beneficiary_has_viral_campaign"]);
 
 // Checked before creating the campaign, so most problems show on the form.
-// issue_beneficiary_link checks again.
-export async function checkBeneficiaryPhone(userId: string, phone: string, viral: boolean): Promise<BeneficiaryPhoneError | null> {
+// issue_beneficiary_link checks again. For under-18s the number is the
+// guardian's, which may be the organiser's own.
+export async function checkBeneficiaryPhone(
+  userId: string,
+  phone: string,
+  { viral, minor }: { viral: boolean; minor: boolean },
+): Promise<BeneficiaryPhoneError | null> {
   const { error } = await createSecretClient().rpc("check_beneficiary_phone", {
     p_user_id: userId,
     p_phone: phone,
     p_viral: viral,
+    p_minor: minor,
   });
   if (!error) return null;
   const known = knownError<BeneficiaryPhoneError>(error, PHONE_ERRORS);
@@ -45,6 +51,7 @@ export type SendLinkError =
   | BeneficiaryPhoneError
   | "not-logged-in"
   | "invalid_name"
+  | "invalid_relationship"
   | "campaign_not_found"
   | "not_organiser"
   | "not_awaiting_beneficiary"
@@ -53,33 +60,45 @@ export type SendLinkError =
 const SEND_ERRORS = new Set<string>([
   ...PHONE_ERRORS,
   "invalid_name",
+  "invalid_relationship",
   "campaign_not_found",
   "not_organiser",
   "not_awaiting_beneficiary",
   "resend_too_soon",
 ]);
 
-// Texts the beneficiary a new link and code. Also resends, or sends to a new
-// number: the old link stops working. phone must be in the +254 form.
+// Texts the beneficiary (or, for under-18s, their parent or guardian) a new
+// link and code. Also resends, or sends to a new number: the old link stops
+// working. phone must be in the +254 form. relationship is only for under-18s.
 export async function sendBeneficiaryLink(
-  campaign: Pick<Campaign, "id" | "title" | "organiser">,
+  campaign: Pick<Campaign, "id" | "title" | "organiser" | "beneficiary" | "beneficiaryIsMinor">,
   name: string,
   phone: string,
+  relationship: string | null = null,
 ): Promise<{ ok: true } | { error: SendLinkError }> {
   const user = await getCurrentUser();
   if (!user) return { error: "not-logged-in" };
 
   const { data, error } = await createSecretClient()
-    .rpc("issue_beneficiary_link", { p_user_id: user.id, p_campaign_id: campaign.id, p_name: name, p_phone: phone })
+    .rpc("issue_beneficiary_link", {
+      p_user_id: user.id,
+      p_campaign_id: campaign.id,
+      p_name: name,
+      p_phone: phone,
+      p_relationship: relationship,
+    })
     .single<{ token: string; code: string }>();
   if (error) {
     const known = knownError<SendLinkError>(error, SEND_ERRORS);
     if (known) return { error: known };
     throw error;
   }
+  const forWhom = campaign.beneficiaryIsMinor
+    ? `for ${campaign.beneficiary}, naming you as their parent or guardian`
+    : "for you";
   await sendSms(
     phone,
-    `Sisi kwa Sisi: ${campaign.organiser} started a harambee for you, "${campaign.title}". ` +
+    `Sisi kwa Sisi: ${campaign.organiser} started a harambee ${forWhom}, "${campaign.title}". ` +
       `To confirm it, open ${smsLink(`/confirm/${data.token}`)} and enter code ${data.code} (expires in 10 minutes). ` +
       `If it isn't you or you don't agree, open the link to tell us.`,
   );
@@ -88,6 +107,7 @@ export async function sendBeneficiaryLink(
 
 export type BeneficiaryLink = {
   name: string;
+  relationship: string | null; // the guardian's, for under-18s
   phone: string;
   sentAt: string;
   linkExpiresAt: string;
@@ -99,6 +119,7 @@ export async function getBeneficiaryLink(campaignId: string): Promise<Beneficiar
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("beneficiary_link_status", { p_campaign_id: campaignId }).maybeSingle<{
     name: string;
+    relationship: string | null;
     phone: string;
     sent_at: string;
     link_expires_at: string;
@@ -106,7 +127,14 @@ export async function getBeneficiaryLink(campaignId: string): Promise<Beneficiar
   }>();
   if (error) throw error;
   return data
-    ? { name: data.name, phone: data.phone, sentAt: data.sent_at, linkExpiresAt: data.link_expires_at, outcome: data.outcome }
+    ? {
+        name: data.name,
+        relationship: data.relationship,
+        phone: data.phone,
+        sentAt: data.sent_at,
+        linkExpiresAt: data.link_expires_at,
+        outcome: data.outcome,
+      }
     : null;
 }
 
@@ -127,18 +155,21 @@ export async function notifyBeneficiaryOfEdit(campaign: Pick<Campaign, "id" | "s
 
 // Admin side ---------------------------------------------------------------
 
-export type PayoutPhone = { phone: string; name: string; confirmedAt: string };
+// For under-18s, name and relationship are the guardian's.
+export type PayoutPhone = { phone: string; name: string; relationship: string | null; confirmedAt: string };
 
 // Row-level security only returns payout numbers to admins.
 export async function getPayoutPhone(campaignId: string): Promise<PayoutPhone | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("payout_phones")
-    .select("phone, name, confirmed_at")
+    .select("phone, name, relationship, confirmed_at")
     .eq("campaign_id", campaignId)
     .maybeSingle();
   if (error) throw error;
-  return data ? { phone: data.phone, name: data.name, confirmedAt: data.confirmed_at } : null;
+  return data
+    ? { phone: data.phone, name: data.name, relationship: data.relationship, confirmedAt: data.confirmed_at }
+    : null;
 }
 
 // Other campaigns paid out to the same number.
@@ -169,7 +200,19 @@ export async function getLinkTitle(token: string): Promise<{ status: LinkStatus;
 
 export type CodeResult = "wrong_code" | "too_many_attempts" | "expired" | Exclude<LinkStatus, "open">;
 
-export type HarambeeToConfirm = { name: string; title: string; story: string; goal: number; organiser: string; slug: string };
+// name is whoever confirms: the beneficiary, or for under-18s (minor) their
+// parent or guardian, with the child's name and the guardian's relationship.
+export type HarambeeToConfirm = {
+  name: string;
+  title: string;
+  story: string;
+  goal: number;
+  organiser: string;
+  slug: string;
+  minor: boolean;
+  child: string | null;
+  relationship: string | null;
+};
 
 export async function checkBeneficiaryCode(
   token: string,

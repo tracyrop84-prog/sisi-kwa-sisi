@@ -43,9 +43,9 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
         </p>
       )}
       <h2 className="mt-1 text-lg font-bold leading-snug">{campaign.title}</h2>
-      {campaign.status !== "closed" && (campaign.beneficiaryConfirmedName || campaign.documentsCheckedAt) && (
+      {campaign.status !== "closed" && (campaign.beneficiaryConfirmedAt || campaign.documentsCheckedAt) && (
         <p className="mt-1 flex flex-wrap gap-1">
-          {campaign.beneficiaryConfirmedName && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} small />}
+          {campaign.beneficiaryConfirmedAt && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} small />}
           {campaign.documentsCheckedAt && <DocumentsCheckedBadge small />}
         </p>
       )}

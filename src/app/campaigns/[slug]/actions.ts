@@ -72,6 +72,8 @@ function sendLinkError(code: SendLinkError): string {
       return "Enter a Kenyan mobile number starting with 07 or 01.";
     case "invalid_name":
       return "Enter their full name, as they’d recognise it.";
+    case "invalid_relationship":
+      return "How are they related to the child? e.g. Mother";
     case "own_phone":
       return "That’s your own number. Enter the number of the person you’re raising for.";
     case "beneficiary_has_viral_campaign":
@@ -98,19 +100,22 @@ export async function beneficiaryLinkAction(prev: BeneficiaryLinkState, formData
 
   let name: string;
   let phone: string | null;
+  let relationship: string | null;
   if (intent === "resend") {
     const link = await getBeneficiaryLink(campaign.id);
     if (!link) return { editing: true, error: "Enter their name and number to send the SMS." };
-    ({ name, phone } = link);
+    ({ name, phone, relationship } = link);
   } else {
-    name = String(formData.get("name") ?? "").trim().replace(/\s+/g, " ");
+    const text = (key: string) => String(formData.get(key) ?? "").trim().replace(/\s+/g, " ");
+    name = text("name");
+    relationship = campaign.beneficiaryIsMinor ? text("relationship") : null;
     phone = normaliseKenyanPhone(String(formData.get("phone") ?? ""));
     if (!phone) return { editing: true, error: sendLinkError("invalid_phone") };
   }
 
   let result: Awaited<ReturnType<typeof sendBeneficiaryLink>>;
   try {
-    result = await sendBeneficiaryLink(campaign, name, phone);
+    result = await sendBeneficiaryLink(campaign, name, phone, relationship);
   } catch (error) {
     console.error("sendBeneficiaryLink failed:", error);
     return { ...prev, error: "We couldn’t send the SMS. Please try again in a minute." };
