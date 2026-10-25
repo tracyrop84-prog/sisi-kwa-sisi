@@ -1,10 +1,13 @@
+import { APPROVAL_GOAL } from "@/lib/campaignRules";
 import type { Campaign } from "@/lib/campaigns";
 import { formatKES } from "@/lib/format";
 
-type Props = { campaign: Pick<Campaign, "status" | "raised" | "donorCount"> };
+type Props = { campaign: Pick<Campaign, "status" | "raised" | "donorCount" | "changesRequestedReason"> };
 
-// Shown on a paused, closed or completed campaign and its challenges. Review
-// notices use the soft blue with an info icon; an ended harambee gets a warm thank-you.
+// Shown on a paused, closed, completed or not-yet-approved campaign and its
+// challenges. Review notices use the soft blue with an info icon; an ended
+// harambee gets a warm thank-you. Only the organiser and admins can open a
+// campaign that isn't approved yet.
 export default function StatusBanner({ campaign }: Props) {
   if (campaign.status === "active") return null;
 
@@ -27,7 +30,23 @@ export default function StatusBanner({ campaign }: Props) {
         <path d="M10 9v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <circle cx="10" cy="6.2" r="1" fill="currentColor" />
       </svg>
-      {campaign.status === "paused" ? (
+      {campaign.status === "pending" ? (
+        <div>
+          <p className="font-bold">Waiting for approval</p>
+          <p className="mt-1 text-sm text-muted">
+            Our team checks every harambee with a goal over KES {APPROVAL_GOAL.toLocaleString("en-KE")} before it goes
+            live. Until then only you can see it. Adding supporting documents helps us approve it faster.
+          </p>
+        </div>
+      ) : campaign.status === "changes_requested" ? (
+        <div className="min-w-0">
+          <p className="font-bold">Our team asked for some changes</p>
+          {campaign.changesRequestedReason && (
+            <p className="mt-1 text-sm whitespace-pre-line break-words">{campaign.changesRequestedReason}</p>
+          )}
+          <p className="mt-1 text-sm text-muted">Edit your harambee or add documents, then resubmit it for approval.</p>
+        </div>
+      ) : campaign.status === "paused" ? (
         <div>
           <p className="font-bold">Donations are paused while we review this harambee</p>
           <p className="mt-1 text-sm text-muted">Donations already made are still recorded.</p>

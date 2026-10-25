@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import AdminActions from "@/app/admin/AdminActions";
 import ChallengeLeaderboard from "@/components/ChallengeLeaderboard";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
+import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
@@ -15,8 +16,9 @@ import SiteHeader from "@/components/SiteHeader";
 import UpdatesTimeline from "@/components/UpdatesTimeline";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
 import CloseHarambeeButton from "./CloseHarambeeButton";
+import ResubmitButton from "./ResubmitButton";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { getCampaign } from "@/lib/campaigns";
+import { canEditDetails, getCampaign } from "@/lib/campaigns";
 import {
   challengeState,
   getCampaignChallenges,
@@ -71,11 +73,14 @@ export default async function CampaignPage({ params, searchParams }: Props) {
 
   const now = Date.now();
   const isOrganiser = !!user && campaign.organiserId === user.id;
-  // Paused, closed and completed campaigns take no donations and no new challenges
-  // (see supabase/reports.sql and supabase/complete_campaign.sql).
+  // Paused, closed, completed and not-yet-approved campaigns take no donations
+  // and no new challenges (see supabase/reports.sql, supabase/complete_campaign.sql
+  // and supabase/organiser_verification.sql).
   const open = campaign.status === "active";
   const closed = campaign.status === "closed";
   const underReview = campaign.status === "paused" || closed;
+  // Waiting for approval or for changes: only the organiser and admins get here.
+  const unpublished = campaign.status === "pending" || campaign.status === "changes_requested";
   const liveChallenges = challenges
     .filter((c) => challengeState(c, now) === "live")
     .sort((a, b) => b.raised - a.raised);
@@ -101,11 +106,8 @@ export default async function CampaignPage({ params, searchParams }: Props) {
     url,
   });
 
-  const started = new Date(campaign.createdAt).toLocaleDateString("en-KE", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const longDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <main className={`mx-auto max-w-md px-5 ${open ? "pb-28" : "pb-10"}`}>
@@ -113,6 +115,7 @@ export default async function CampaignPage({ params, searchParams }: Props) {
       <SiteHeader />
 
       <StatusBanner campaign={campaign} />
+      {isOrganiser && campaign.status === "changes_requested" && <ResubmitButton slug={campaign.slug} />}
       {isOrganiser && underReview && (
         <div className="mt-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           {closed ? (
@@ -196,6 +199,11 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           organising this harambee for{" "}
           <span className="font-semibold text-text">{campaign.beneficiary}</span>
         </p>
+        {campaign.documentsCheckedAt && !closed && (
+          <p className="mt-2">
+            <DocumentsCheckedBadge />
+          </p>
+        )}
 
         <div className="mt-5 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
           <ProgressBar
@@ -249,7 +257,7 @@ export default async function CampaignPage({ params, searchParams }: Props) {
             >
               Post update
             </Link>
-            {open && (
+            {canEditDetails(campaign.status) && (
               <Link
                 href={`/campaigns/${campaign.slug}/edit`}
                 className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-text ring-1 ring-black/15 active:scale-[0.99]"
@@ -258,6 +266,22 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               </Link>
             )}
           </div>
+        )}
+        {isOrganiser && !closed && (
+          <Link
+            href={`/campaigns/${campaign.slug}/documents`}
+            className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-black/15 active:scale-[0.99]"
+          >
+            <span>
+              <span className="block font-bold">Supporting documents</span>
+              <span className="block text-sm text-muted">
+                {campaign.documentsCheckedAt ? "Checked by our team" : "Private: only you and our team see them"}
+              </span>
+            </span>
+            <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-muted" aria-hidden="true">
+              <path d="m8 5 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
         )}
         {isOrganiser && open && (
           <CloseHarambeeButton
@@ -338,7 +362,11 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               </p>
             ))}
           </div>
-          <p className="mt-4 text-sm text-muted">Started {started}</p>
+          <p className="mt-4 text-sm text-muted">
+            Started {longDate(campaign.createdAt)}
+            {/* Set by the database when the title, story or location changes after the first donation. */}
+            {campaign.lastEditedAt && <> · Edited {longDate(campaign.lastEditedAt)}</>}
+          </p>
         </section>
 
         <section className="mt-8">
@@ -358,15 +386,17 @@ export default async function CampaignPage({ params, searchParams }: Props) {
             <AdminActions campaignId={campaign.id} campaignSlug={campaign.slug} decisions={["pause"]} />
           </section>
         )}
-        {admin && campaign.status === "paused" && (
+        {admin && (
           <p className="mt-8 text-center text-sm">
-            <Link href="/admin" className="font-semibold text-accent">
-              Review in the admin dashboard
+            <Link href={`/admin/campaigns/${campaign.id}`} className="font-semibold text-accent">
+              {campaign.status === "paused" || unpublished
+                ? "Review in the admin dashboard"
+                : "Organiser, documents and edit history"}
             </Link>
           </p>
         )}
 
-        {!isOrganiser && !closed && <ReportLink campaignSlug={campaign.slug} reported={reported} />}
+        {!isOrganiser && !closed && !unpublished && <ReportLink campaignSlug={campaign.slug} reported={reported} />}
       </article>
 
       {open && (

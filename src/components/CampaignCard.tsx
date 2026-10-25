@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
 import type { Campaign } from "@/lib/campaigns";
@@ -25,7 +26,22 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
           Completed · thank you 🙏
         </p>
       )}
+      {campaign.status === "pending" && (
+        <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+          Waiting for approval
+        </p>
+      )}
+      {campaign.status === "changes_requested" && (
+        <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+          Changes requested
+        </p>
+      )}
       <h2 className="mt-1 text-lg font-bold leading-snug">{campaign.title}</h2>
+      {campaign.documentsCheckedAt && campaign.status !== "closed" && (
+        <p className="mt-1">
+          <DocumentsCheckedBadge small />
+        </p>
+      )}
       <div className="mt-3">
         <ProgressBar
           raised={campaign.raised}

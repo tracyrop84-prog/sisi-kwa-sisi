@@ -54,7 +54,9 @@ export default async function NewChallengePage({ params }: Props) {
             ? "Donations to this harambee are paused while we review it, so it can’t take new challenges."
             : campaign.status === "completed"
               ? "This harambee has ended, so it can’t take new challenges."
-              : "This harambee has been closed and can’t take challenges."}
+              : campaign.status === "pending" || campaign.status === "changes_requested"
+                ? "This harambee isn’t approved yet. Challenges can start once it goes live."
+                : "This harambee has been closed and can’t take challenges."}
         </p>
       ) : campaign.organiserId ? (
         <>
