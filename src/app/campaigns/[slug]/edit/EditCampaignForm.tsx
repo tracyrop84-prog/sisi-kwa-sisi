@@ -15,10 +15,11 @@ type Props = {
   campaignId: string;
   campaignSlug: string;
   initial: Record<DetailField, string>;
+  beneficiaryLocked: boolean; // true once the campaign has a donation
   coverPhoto: string | null;
 };
 
-export default function EditCampaignForm({ campaignId, campaignSlug, initial, coverPhoto }: Props) {
+export default function EditCampaignForm({ campaignId, campaignSlug, initial, beneficiaryLocked, coverPhoto }: Props) {
   const [values, setValues] = useState(initial);
   const [cover, setCover] = useState<PickedPhoto[]>(
     coverPhoto ? [{ key: coverPhoto, path: coverPhoto, preview: photoUrl(coverPhoto) }] : [],
@@ -30,7 +31,12 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, co
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = { title: values.title.trim(), location: values.location.trim(), story: values.story.trim() };
+    const trimmed = {
+      title: values.title.trim(),
+      beneficiary: values.beneficiary.trim(),
+      location: values.location.trim(),
+      story: values.story.trim(),
+    };
     // Check the text before uploading, so a photo isn't uploaded for nothing.
     const found = campaignDetailErrors(trimmed);
     if (Object.keys(found).length > 0) {
@@ -76,6 +82,20 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, co
         <label htmlFor="title" className="font-semibold">Title</label>
         <input {...field("title")} className={inputClass} maxLength={100} />
         {errors.title && <ErrorMessage id="title-error">{errors.title}</ErrorMessage>}
+      </div>
+
+      <div>
+        <label htmlFor="beneficiary" className="font-semibold">Who is it for?</label>
+        {beneficiaryLocked && (
+          <p className="text-sm text-muted">This can’t be changed once the harambee has a donation.</p>
+        )}
+        <input
+          {...field("beneficiary")}
+          className={`${inputClass} disabled:bg-black/5 disabled:text-muted`}
+          disabled={beneficiaryLocked}
+          placeholder="A person, family or group"
+        />
+        {errors.beneficiary && <ErrorMessage id="beneficiary-error">{errors.beneficiary}</ErrorMessage>}
       </div>
 
       <div>

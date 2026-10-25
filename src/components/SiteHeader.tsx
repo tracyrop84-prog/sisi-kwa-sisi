@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { logOutAction } from "@/app/auth/actions";
 import Logo from "@/components/Logo";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 
 export default async function SiteHeader() {
-  const user = await getCurrentUser();
+  const [user, admin] = await Promise.all([getCurrentUser(), isAdmin()]);
 
   return (
     <header className="flex items-center justify-between gap-3 py-4">
@@ -15,6 +15,11 @@ export default async function SiteHeader() {
         <Link href="/campaigns" className="text-sm font-semibold text-accent">
           Browse
         </Link>
+        {admin && (
+          <Link href="/admin" className="text-sm font-semibold text-accent">
+            Admin
+          </Link>
+        )}
         {user ? (
           <div className="flex min-w-0 flex-col items-end leading-tight">
             <span className="max-w-28 truncate text-sm font-semibold" title={user.name}>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AdminActions from "@/app/admin/AdminActions";
 import ChallengeLeaderboard from "@/components/ChallengeLeaderboard";
 import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DonorList from "@/components/DonorList";
@@ -8,10 +9,13 @@ import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
 import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
+import ReportLink from "@/components/ReportLink";
+import StatusBanner from "@/components/StatusBanner";
 import SiteHeader from "@/components/SiteHeader";
 import UpdatesTimeline from "@/components/UpdatesTimeline";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
-import { getCurrentUser } from "@/lib/auth";
+import CloseHarambeeButton from "./CloseHarambeeButton";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { getCampaign } from "@/lib/campaigns";
 import {
   challengeState,
@@ -22,6 +26,7 @@ import {
 } from "@/lib/challenges";
 import { formatKES, formatTimeLeft } from "@/lib/format";
 import { getDonations } from "@/lib/donations";
+import { hasReported } from "@/lib/reports";
 import { siteUrl } from "@/lib/site";
 import { getGiftCount, getUpdates } from "@/lib/updates";
 import { buildWhatsAppSummary } from "@/lib/whatsapp";
@@ -30,7 +35,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ thanks?: string; challenge?: string; update?: string; edited?: string }>;
+  searchParams: Promise<{ thanks?: string; challenge?: string; update?: string; edited?: string; reported?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -42,19 +47,35 @@ export default async function CampaignPage({ params, searchParams }: Props) {
   const campaign = await getCampaign((await params).slug);
   if (!campaign) notFound();
 
-  const [donations, url, user, challenges, updates, giftCount, { thanks, challenge, update, edited }] =
-    await Promise.all([
-      getDonations(campaign.id),
-      siteUrl(`/campaigns/${campaign.slug}`),
-      getCurrentUser(),
-      getCampaignChallenges(campaign.id),
-      getUpdates(campaign.id),
-      getGiftCount(campaign.id),
-      searchParams,
-    ]);
+  const [
+    donations,
+    url,
+    user,
+    admin,
+    reported,
+    challenges,
+    updates,
+    giftCount,
+    { thanks, challenge, update, edited, reported: justReported },
+  ] = await Promise.all([
+    getDonations(campaign.id),
+    siteUrl(`/campaigns/${campaign.slug}`),
+    getCurrentUser(),
+    isAdmin(),
+    hasReported(campaign.id),
+    getCampaignChallenges(campaign.id),
+    getUpdates(campaign.id),
+    getGiftCount(campaign.id),
+    searchParams,
+  ]);
 
   const now = Date.now();
   const isOrganiser = !!user && campaign.organiserId === user.id;
+  // Paused, closed and completed campaigns take no donations and no new challenges
+  // (see supabase/reports.sql and supabase/complete_campaign.sql).
+  const open = campaign.status === "active";
+  const closed = campaign.status === "closed";
+  const underReview = campaign.status === "paused" || closed;
   const liveChallenges = challenges
     .filter((c) => challengeState(c, now) === "live")
     .sort((a, b) => b.raised - a.raised);
@@ -87,9 +108,33 @@ export default async function CampaignPage({ params, searchParams }: Props) {
   });
 
   return (
-    <main className="mx-auto max-w-md px-5 pb-28">
+    <main className={`mx-auto max-w-md px-5 ${open ? "pb-28" : "pb-10"}`}>
       <LiveRefresh campaignId={campaign.id} />
       <SiteHeader />
+
+      <StatusBanner campaign={campaign} />
+      {isOrganiser && underReview && (
+        <div className="mt-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
+          {closed ? (
+            <p className="font-bold">Your harambee has been closed after review</p>
+          ) : (
+            <>
+              <p className="font-bold">Your harambee is under review</p>
+              <p className="mt-1 text-sm text-muted">
+                Our team is taking a look, so donations are paused and the harambee can’t be edited for now. You can
+                still post updates to show how the money is being used. Donations resume if everything checks out.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {justReported && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Thanks for telling us</p>
+          <p className="mt-1 text-sm text-muted">Our team will review this harambee. Your report is anonymous.</p>
+        </div>
+      )}
 
       {thanks && (
         <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
@@ -166,10 +211,12 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               {giftCount === 1 ? "gift" : "gifts"} received
             </p>
           )}
-          <div className="mt-4 space-y-2">
-            <WhatsAppShareButton text={whatsAppUpdate} />
-            <CopyWhatsAppButton text={whatsAppUpdate} />
-          </div>
+          {open && (
+            <div className="mt-4 space-y-2">
+              <WhatsAppShareButton text={whatsAppUpdate} />
+              <CopyWhatsAppButton text={whatsAppUpdate} />
+            </div>
+          )}
         </div>
 
         {/* Seeded campaigns have no organiser to approve challenges, so they can't take any. */}
@@ -179,14 +226,14 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               <span>
                 <span className="block font-bold text-accent group-hover:underline">Your challenge</span>
                 <span className="mt-0.5 block text-sm text-muted">
-                  <MyChallengeStatus challenge={mine} state={mineState} now={now} />
+                  <MyChallengeStatus challenge={mine} state={mineState} now={now} ended={campaign.status === "completed"} />
                 </span>
               </span>
               <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-muted" aria-hidden="true">
                 <path d="m8 5 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
-            {mineState === "waiting-for-host" && (
+            {mineState === "waiting-for-host" && open && (
               <div className="mt-3">
                 <FirstGiftButton slug={mine.slug} msLeft={hostGiftDeadline(mine) - now} />
               </div>
@@ -194,7 +241,7 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        {isOrganiser && (
+        {isOrganiser && !closed && (
           <div className="mt-4 flex gap-2">
             <Link
               href={`/campaigns/${campaign.slug}/updates/new`}
@@ -202,18 +249,27 @@ export default async function CampaignPage({ params, searchParams }: Props) {
             >
               Post update
             </Link>
-            <Link
-              href={`/campaigns/${campaign.slug}/edit`}
-              className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-text ring-1 ring-black/15 active:scale-[0.99]"
-            >
-              Edit
-            </Link>
+            {open && (
+              <Link
+                href={`/campaigns/${campaign.slug}/edit`}
+                className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-text ring-1 ring-black/15 active:scale-[0.99]"
+              >
+                Edit
+              </Link>
+            )}
           </div>
         )}
+        {isOrganiser && open && (
+          <CloseHarambeeButton
+            slug={campaign.slug}
+            finalTotal={formatKES(campaign.raised)}
+            liveChallenges={challenges.filter((c) => ["live", "waiting-for-host"].includes(challengeState(c, now))).length}
+          />
+        )}
 
-        {user && campaign.organiserId && (canCreate || isOrganiser) && (
+        {user && campaign.organiserId && ((canCreate && open) || isOrganiser) && (
           <div className="mt-4 flex gap-2">
-            {canCreate && (
+            {canCreate && open && (
               <Link
                 href={`/campaigns/${campaign.slug}/challenges/new`}
                 className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-accent ring-1 ring-accent/40 active:scale-[0.99]"
@@ -262,7 +318,7 @@ export default async function CampaignPage({ params, searchParams }: Props) {
                 campaignCategory={campaign.category}
                 campaignSlug={campaign.slug}
                 campaignUrl={url}
-                isOrganiser={isOrganiser}
+                isOrganiser={isOrganiser && !closed}
               />
             ) : (
               <p className="mt-2 text-muted">
@@ -294,24 +350,45 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           </h2>
           <DonorList donations={donations} />
         </section>
+
+        {admin && open && (
+          <section className="mt-8 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
+            <h2 className="font-bold">Admin</h2>
+            <p className="mt-0.5 text-sm text-muted">Pausing stops donations until you clear it from the dashboard.</p>
+            <AdminActions campaignId={campaign.id} campaignSlug={campaign.slug} decisions={["pause"]} />
+          </section>
+        )}
+        {admin && campaign.status === "paused" && (
+          <p className="mt-8 text-center text-sm">
+            <Link href="/admin" className="font-semibold text-accent">
+              Review in the admin dashboard
+            </Link>
+          </p>
+        )}
+
+        {!isOrganiser && !closed && <ReportLink campaignSlug={campaign.slug} reported={reported} />}
       </article>
 
-      {/* Sticky donate bar — thumb-reachable on phones. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-black/5 bg-surface/95 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto max-w-md">
-          <Link
-            href={`/campaigns/${campaign.slug}/donate`}
-            className="block w-full rounded-xl bg-primary px-6 py-4 text-center text-lg font-bold text-white active:scale-[0.99] hover:brightness-95"
-          >
-            Donate
-          </Link>
+      {open && (
+        // Sticky donate bar — thumb-reachable on phones.
+        <div className="fixed inset-x-0 bottom-0 border-t border-black/5 bg-surface/95 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+          <div className="mx-auto max-w-md">
+            <Link
+              href={`/campaigns/${campaign.slug}/donate`}
+              className="block w-full rounded-xl bg-primary px-6 py-4 text-center text-lg font-bold text-white active:scale-[0.99] hover:brightness-95"
+            >
+              Donate
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }
 
-function MyChallengeStatus({ challenge: c, state, now }: { challenge: Challenge; state: ChallengeState; now: number }) {
+type MyChallengeProps = { challenge: Challenge; state: ChallengeState; now: number; ended: boolean };
+
+function MyChallengeStatus({ challenge: c, state, now, ended }: MyChallengeProps) {
   switch (state) {
     case "pending":
       return <>Waiting for organiser approval</>;
@@ -324,6 +401,7 @@ function MyChallengeStatus({ challenge: c, state, now }: { challenge: Challenge;
     case "expired":
       return <>Expired: no first gift within 24 hours</>;
     case "declined":
-      return <>Declined by the organiser</>;
+      // Closing a harambee declines challenges still waiting for approval.
+      return ended ? <>Didn’t run: the harambee ended</> : <>Declined by the organiser</>;
   }
 }

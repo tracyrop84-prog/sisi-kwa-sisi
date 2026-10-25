@@ -33,19 +33,37 @@ export default async function EditCampaignPage({ params, searchParams }: Props) 
         ← Back to harambee
       </Link>
       <h1 className="mt-3 mb-6 text-2xl font-extrabold leading-tight tracking-tight">Edit harambee</h1>
-      {cover === "failed" && (
-        <div className="mb-5">
-          <ErrorMessage>
-            Your harambee was created, but the cover photo didn’t upload. Add it again below.
-          </ErrorMessage>
-        </div>
+      {campaign.status !== "active" ? (
+        <p className="rounded-2xl bg-surface p-4 text-muted shadow-sm ring-1 ring-black/5">
+          {campaign.status === "paused"
+            ? "You can’t edit this harambee while it’s under review."
+            : campaign.status === "completed"
+              ? "This harambee has ended, so its details can’t be changed. You can still post updates."
+              : "This harambee has been closed and can’t be edited."}
+        </p>
+      ) : (
+        <>
+          {cover === "failed" && (
+            <div className="mb-5">
+              <ErrorMessage>
+                Your harambee was created, but the cover photo didn’t upload. Add it again below.
+              </ErrorMessage>
+            </div>
+          )}
+          <EditCampaignForm
+            campaignId={campaign.id}
+            campaignSlug={campaign.slug}
+            initial={{
+              title: campaign.title,
+              beneficiary: campaign.beneficiary,
+              location: campaign.location,
+              story: campaign.story,
+            }}
+            beneficiaryLocked={campaign.donorCount > 0}
+            coverPhoto={campaign.coverPhoto}
+          />
+        </>
       )}
-      <EditCampaignForm
-        campaignId={campaign.id}
-        campaignSlug={campaign.slug}
-        initial={{ title: campaign.title, location: campaign.location, story: campaign.story }}
-        coverPhoto={campaign.coverPhoto}
-      />
     </main>
   );
 }

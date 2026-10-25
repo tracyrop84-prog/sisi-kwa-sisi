@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProgressBar from "@/components/ProgressBar";
+import StatusBanner from "@/components/StatusBanner";
 import SiteHeader from "@/components/SiteHeader";
 import { getCampaign } from "@/lib/campaigns";
 import { MAX_MESSAGE, MAX_NAME } from "@/lib/donations";
@@ -30,7 +31,11 @@ export default async function DonatePage({ params }: Props) {
       <div className="mt-4 mb-6 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
         <ProgressBar raised={campaign.raised} goal={campaign.goal} donorCount={campaign.donorCount} />
       </div>
-      <DonateForm slug={campaign.slug} maxMessage={MAX_MESSAGE} maxName={MAX_NAME} />
+      {campaign.status === "active" ? (
+        <DonateForm slug={campaign.slug} maxMessage={MAX_MESSAGE} maxName={MAX_NAME} />
+      ) : (
+        <StatusBanner campaign={campaign} />
+      )}
     </main>
   );
 }

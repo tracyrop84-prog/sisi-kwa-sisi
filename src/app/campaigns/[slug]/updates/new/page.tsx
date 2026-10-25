@@ -19,8 +19,8 @@ export default async function NewUpdatePage({ params }: Props) {
   if (!user.emailConfirmed) redirect(`/check-email?next=${encodeURIComponent(`/campaigns/${slug}/updates/new`)}`);
 
   const campaign = await getCampaign(slug);
-  // Only the organiser can post; everyone else sees a plain 404.
-  if (!campaign || campaign.organiserId !== user.id) notFound();
+  // Only the organiser can post, and not once the campaign is closed; everyone else sees a plain 404.
+  if (!campaign || campaign.organiserId !== user.id || campaign.status === "closed") notFound();
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">

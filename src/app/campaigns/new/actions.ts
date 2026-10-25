@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { campaignDetailErrors } from "@/lib/campaignRules";
-import { CATEGORIES, createCampaign, type Category } from "@/lib/campaigns";
+import { CAMPAIGN_DECLARATION, campaignDetailErrors, MAX_OPEN_CAMPAIGNS } from "@/lib/campaignRules";
+import { CATEGORIES, createCampaign, type Category, type CreateError } from "@/lib/campaigns";
 
 export type FormState = {
   errors: Partial<Record<Field, string>>;
@@ -13,7 +13,20 @@ export type FormState = {
   created?: { id: string; slug: string };
 };
 
-type Field = "title" | "category" | "organiser" | "beneficiary" | "location" | "goal" | "story";
+type Field = "title" | "category" | "organiser" | "beneficiary" | "location" | "goal" | "story" | "declaration";
+
+function friendlyError(code: CreateError): string {
+  switch (code) {
+    case "email-not-confirmed":
+      return "Please confirm your email first. Check your inbox for the link.";
+    case "declaration_required":
+      return "Please tick the box to confirm the information is true.";
+    case "campaign_limit":
+      return `You already have ${MAX_OPEN_CAMPAIGNS} active harambees, which is the most you can run at once.`;
+    default:
+      return "You’ve been logged out. Please log in again, then submit.";
+  }
+}
 
 const MIN_GOAL = 1000;
 const MAX_GOAL = 50_000_000;
@@ -30,12 +43,13 @@ export async function createCampaignAction(
     location: String(formData.get("location") ?? "").trim(),
     goal: String(formData.get("goal") ?? "").replace(/[,\s]/g, ""),
     story: String(formData.get("story") ?? "").trim(),
+    declaration: formData.get("declaration") === "on" ? "on" : "",
   };
 
   const errors: FormState["errors"] = campaignDetailErrors(values);
   if (!CATEGORIES.includes(values.category as Category)) errors.category = "Choose a category.";
   if (!values.organiser) errors.organiser = "Tell people who is organising.";
-  if (!values.beneficiary) errors.beneficiary = "Tell people who the money is for.";
+  if (!values.declaration) errors.declaration = "Please tick the box to confirm the information is true.";
 
   const goal = Number(values.goal);
   if (!Number.isInteger(goal) || goal < MIN_GOAL || goal > MAX_GOAL) {
@@ -44,18 +58,20 @@ export async function createCampaignAction(
 
   if (Object.keys(errors).length > 0) return { errors, values };
 
-  const result = await createCampaign({
-    ...values,
-    category: values.category as Category,
-    goal,
-  });
-  if ("error" in result) {
-    const formError =
-      result.error === "email-not-confirmed"
-        ? "Please confirm your email first. Check your inbox for the link."
-        : "You’ve been logged out. Please log in again, then submit.";
-    return { errors: {}, values, formError };
-  }
+  const result = await createCampaign(
+    {
+      title: values.title,
+      category: values.category as Category,
+      organiser: values.organiser,
+      beneficiary: values.beneficiary,
+      location: values.location,
+      goal,
+      story: values.story,
+    },
+    // The server's copy of the text, so what's stored is exactly what the form shows.
+    CAMPAIGN_DECLARATION,
+  );
+  if ("error" in result) return { errors: {}, values, formError: friendlyError(result.error) };
   const { id, slug } = result.campaign;
   if (formData.get("hasCover") === "1") return { errors: {}, values, created: { id, slug } };
   redirect(`/campaigns/${slug}`);

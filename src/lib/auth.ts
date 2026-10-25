@@ -18,6 +18,15 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   return { id: user.id, name, email, emailConfirmed: Boolean(user.email_confirmed_at) };
 });
 
+// Admins are set directly in the database (see supabase/reports.sql), never by the app.
+export const isAdmin = cache(async (): Promise<boolean> => {
+  if (!(await getCurrentUser())) return false;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("is_admin");
+  if (error) throw error;
+  return data === true;
+});
+
 // Only allow redirects to our own pages, never to another site.
 export function safeNext(next: unknown, fallback = "/campaigns"): string {
   const path = typeof next === "string" ? next : "";

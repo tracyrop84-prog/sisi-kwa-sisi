@@ -48,7 +48,15 @@ export default async function NewChallengePage({ params }: Props) {
         All money goes directly to the harambee.
       </p>
 
-      {campaign.organiserId ? (
+      {campaign.status !== "active" ? (
+        <p className="mt-6 rounded-2xl bg-surface p-4 text-muted shadow-sm ring-1 ring-black/5">
+          {campaign.status === "paused"
+            ? "Donations to this harambee are paused while we review it, so it can’t take new challenges."
+            : campaign.status === "completed"
+              ? "This harambee has ended, so it can’t take new challenges."
+              : "This harambee has been closed and can’t take challenges."}
+        </p>
+      ) : campaign.organiserId ? (
         <>
           <p className="mt-4 mb-6 rounded-2xl bg-accent/10 p-4 text-sm">
             {isOrganiser
