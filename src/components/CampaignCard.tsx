@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BeneficiaryVerifiedBadge from "@/components/BeneficiaryVerifiedBadge";
 import DocumentsCheckedBadge from "@/components/DocumentsCheckedBadge";
 import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
@@ -31,15 +32,21 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
           Waiting for approval
         </p>
       )}
+      {campaign.status === "awaiting_beneficiary" && (
+        <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+          Waiting for confirmation
+        </p>
+      )}
       {campaign.status === "changes_requested" && (
         <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
           Changes requested
         </p>
       )}
       <h2 className="mt-1 text-lg font-bold leading-snug">{campaign.title}</h2>
-      {campaign.documentsCheckedAt && campaign.status !== "closed" && (
-        <p className="mt-1">
-          <DocumentsCheckedBadge small />
+      {campaign.status !== "closed" && (campaign.beneficiaryConfirmedName || campaign.documentsCheckedAt) && (
+        <p className="mt-1 flex flex-wrap gap-1">
+          {campaign.beneficiaryConfirmedName && <BeneficiaryVerifiedBadge name={campaign.beneficiaryConfirmedName} small />}
+          {campaign.documentsCheckedAt && <DocumentsCheckedBadge small />}
         </p>
       )}
       <div className="mt-3">

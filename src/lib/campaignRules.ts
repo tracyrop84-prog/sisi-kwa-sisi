@@ -49,3 +49,11 @@ export const APPROVAL_GOAL = 500_000;
 
 // What an admin writes when requesting changes; the database allows up to this.
 export const MAX_CHANGES_REASON = 1000;
+
+// Beneficiary confirmation, enforced in supabase/beneficiary_verification.sql.
+
+// What the beneficiary ticks on /confirm/[token].
+export const BENEFICIARY_AGREEMENT = "Yes, this is my official harambee and I agree to it";
+
+// How long the link in the SMS works. Each code still expires after 10 minutes.
+export const BENEFICIARY_LINK_DAYS = 7;

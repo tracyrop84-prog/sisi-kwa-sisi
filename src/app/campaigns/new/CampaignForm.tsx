@@ -7,6 +7,7 @@ import ErrorMessage from "@/components/ErrorMessage";
 import PhotoPicker from "@/components/PhotoPicker";
 import { APPROVAL_GOAL, CAMPAIGN_DECLARATION } from "@/lib/campaignRules";
 import { CATEGORIES, CATEGORY_INFO } from "@/lib/categories";
+import { MAX_VIDEO_URL, VIRAL_CATEGORY } from "@/lib/videoLinks";
 import { uploadPhotos, type PickedPhoto } from "@/lib/uploadPhotos";
 import { createCampaignAction, type FormState } from "./actions";
 
@@ -29,6 +30,12 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
   // Kept outside the form below, so a failed submit doesn't lose the photo.
   const [cover, setCover] = useState<PickedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
+  // Which optional sections show. Kept here, so they survive a failed submit.
+  const [category, setCategory] = useState(values.category);
+  const [viral, setViral] = useState(values.viral === "on");
+  const [askToConfirm, setAskToConfirm] = useState(values.confirmBeneficiary === "on");
+  const viralShown = category === VIRAL_CATEGORY && viral;
+  const confirming = viralShown || askToConfirm;
 
   // The campaign exists now, so its cover photo can go in its folder.
   useEffect(() => {
@@ -69,7 +76,10 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
         {errors.title && <ErrorMessage id="title-error">{errors.title}</ErrorMessage>}
       </div>
 
-      <fieldset aria-describedby={errors.category ? "category-error" : undefined}>
+      <fieldset
+        aria-describedby={errors.category ? "category-error" : undefined}
+        onChange={(e) => e.target instanceof HTMLInputElement && setCategory(e.target.value)}
+      >
         <legend className="font-semibold">Category</legend>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {CATEGORIES.map((c) => (
@@ -85,6 +95,41 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
         </div>
         {errors.category && <ErrorMessage id="category-error">{errors.category}</ErrorMessage>}
       </fieldset>
+
+      {category === VIRAL_CATEGORY && (
+        <div className="rounded-xl bg-surface p-4 ring-1 ring-black/15">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="viral"
+              checked={viral}
+              onChange={(e) => setViral(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-accent"
+            />
+            <span>
+              <span className="block font-semibold">This person went viral</span>
+              <span className="block text-sm text-muted">
+                Link the original video. We’ll ask them to confirm by SMS before the harambee goes live.
+              </span>
+            </span>
+          </label>
+          {viral && (
+            <div className="mt-4">
+              <label htmlFor="videoUrl" className="font-semibold">Link to the original video</label>
+              <p className="text-sm text-muted">TikTok, Facebook, Instagram or YouTube.</p>
+              <input
+                {...field("videoUrl")}
+                className={inputClass}
+                type="url"
+                inputMode="url"
+                placeholder="https://www.tiktok.com/@…"
+                maxLength={MAX_VIDEO_URL}
+              />
+              {errors.videoUrl && <ErrorMessage id="videoUrl-error">{errors.videoUrl}</ErrorMessage>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label htmlFor="goal" className="font-semibold">Goal (KES)</label>
@@ -110,6 +155,59 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
         <label htmlFor="beneficiary" className="font-semibold">Who is it for?</label>
         <input {...field("beneficiary")} className={inputClass} placeholder="A person, family or group" />
         {errors.beneficiary && <ErrorMessage id="beneficiary-error">{errors.beneficiary}</ErrorMessage>}
+      </div>
+
+      <div className="rounded-xl bg-surface p-4 ring-1 ring-black/15">
+        {viralShown ? (
+          <>
+            <p className="font-semibold">Who went viral?</p>
+            <p className="text-sm text-muted">
+              We’ll text them a code to confirm this harambee. It goes live once they do.
+            </p>
+          </>
+        ) : (
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="confirmBeneficiary"
+              checked={askToConfirm}
+              onChange={(e) => setAskToConfirm(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-accent"
+            />
+            <span>
+              <span className="block font-semibold">
+                Ask them to confirm <span className="font-normal text-muted">(optional)</span>
+              </span>
+              <span className="block text-sm text-muted">
+                If you’re raising for someone else, we’ll text them a code. Once they confirm, your harambee shows a
+                Verified badge. It goes live after they confirm.
+              </span>
+            </span>
+          </label>
+        )}
+        {confirming && (
+          <div className="mt-4 flex flex-col gap-4">
+            <div>
+              <label htmlFor="beneficiaryName" className="font-semibold">Their full name</label>
+              <input {...field("beneficiaryName")} className={inputClass} placeholder="e.g. Grace Akinyi" maxLength={100} />
+              {errors.beneficiaryName && <ErrorMessage id="beneficiaryName-error">{errors.beneficiaryName}</ErrorMessage>}
+            </div>
+            <div>
+              <label htmlFor="beneficiaryPhone" className="font-semibold">Their phone number</label>
+              <p className="text-sm text-muted">
+                Only our team can see it. Money raised will only ever be paid to this number.
+              </p>
+              <input
+                {...field("beneficiaryPhone")}
+                className={inputClass}
+                type="tel"
+                inputMode="tel"
+                placeholder="0712 345 678"
+              />
+              {errors.beneficiaryPhone && <ErrorMessage id="beneficiaryPhone-error">{errors.beneficiaryPhone}</ErrorMessage>}
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

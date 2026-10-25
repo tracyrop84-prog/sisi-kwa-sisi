@@ -15,7 +15,7 @@ type Props = {
   campaignId: string;
   campaignSlug: string;
   initial: Record<DetailField, string>;
-  beneficiaryLocked: boolean; // true once the campaign has a donation
+  beneficiaryLocked: boolean; // true once the campaign has a donation or the beneficiary confirmed
   coverPhoto: string | null;
   // Only while an admin has requested changes. maxGoal is set for organisers
   // who are still capped at NEW_ORGANISER_MAX_GOAL.
@@ -120,7 +120,7 @@ export default function EditCampaignForm({ campaignId, campaignSlug, initial, be
       <div>
         <label htmlFor="beneficiary" className="font-semibold">Who is it for?</label>
         {beneficiaryLocked && (
-          <p className="text-sm text-muted">This can’t be changed once the harambee has a donation.</p>
+          <p className="text-sm text-muted">This can’t be changed once the harambee has a donation or has been confirmed.</p>
         )}
         <input
           {...field("beneficiary")}
