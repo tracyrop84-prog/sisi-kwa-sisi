@@ -1,4 +1,6 @@
 import "server-only";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { photoUrl } from "@/lib/photos";
 
 // Shared by the Open Graph preview cards (campaigns and challenges) that
@@ -49,6 +51,19 @@ export async function loadCoverPhoto(path: string | null): Promise<string | null
   } catch {
     return null;
   }
+}
+
+// The brand mark (brand/sisi-logo-1000.png, 820 × 1000) as a data URL, read
+// once per server. null if it's missing, so the card still renders without it.
+export const OG_LOGO_RATIO = 820 / 1000;
+
+let logo: Promise<string | null> | undefined;
+
+export function loadOgLogo(): Promise<string | null> {
+  logo ??= readFile(join(process.cwd(), "brand", "sisi-logo-1000.png"))
+    .then((data) => `data:image/png;base64,${data.toString("base64")}`)
+    .catch(() => null);
+  return logo;
 }
 
 export const clip = (text: string, max: number) =>

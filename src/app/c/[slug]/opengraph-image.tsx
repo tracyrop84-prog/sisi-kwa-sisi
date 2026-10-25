@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { getCampaignById } from "@/lib/campaigns";
 import { CHALLENGE_TYPES, challengeState, challengeTitle, getChallenge } from "@/lib/challenges";
 import { formatKES, formatTimeLeft } from "@/lib/format";
-import { clip, loadCoverPhoto, loadOgFonts, OG_COLORS, OG_SIZE } from "@/lib/og";
+import { clip, loadCoverPhoto, loadOgFonts, loadOgLogo, OG_COLORS, OG_LOGO_RATIO, OG_SIZE } from "@/lib/og";
 
 // The preview card WhatsApp, Facebook and X show when a challenge link is shared.
 // When the campaign has a cover photo, it fills the right-hand side.
@@ -16,7 +16,11 @@ const COLORS = OG_COLORS;
 export default async function Image({ params }: { params: { slug: string } }) {
   const challenge = await getChallenge(params.slug);
   const campaign = challenge && (await getCampaignById(challenge.campaignId));
-  const [fonts, cover] = await Promise.all([loadOgFonts(), loadCoverPhoto(campaign?.coverPhoto ?? null)]);
+  const [fonts, cover, logo] = await Promise.all([
+    loadOgFonts(),
+    loadCoverPhoto(campaign?.coverPhoto ?? null),
+    loadOgLogo(),
+  ]);
 
   if (!challenge || !campaign) {
     return new ImageResponse(
@@ -68,7 +72,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 32, fontWeight: 800 }}>
-              <div style={{ width: 22, height: 22, borderRadius: 11, background: COLORS.primary }} />
+              {logo && <img src={logo} alt="" width={Math.round(44 * OG_LOGO_RATIO)} height={44} />}
               Sisi kwa Sisi
             </div>
             <div

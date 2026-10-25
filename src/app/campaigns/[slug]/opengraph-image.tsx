@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getCampaign } from "@/lib/campaigns";
 import { formatKES, percentRaised } from "@/lib/format";
-import { clip, loadCoverPhoto, loadOgFonts, OG_COLORS as COLORS, OG_SIZE } from "@/lib/og";
+import { clip, loadCoverPhoto, loadOgFonts, loadOgLogo, OG_COLORS as COLORS, OG_LOGO_RATIO, OG_SIZE } from "@/lib/og";
 
 // The preview card WhatsApp, Facebook and X show when a campaign link is shared.
 // When the campaign has a cover photo, it fills the right-hand side.
@@ -12,7 +12,11 @@ export const alt = "A Sisi kwa Sisi harambee";
 
 export default async function Image({ params }: { params: { slug: string } }) {
   const campaign = await getCampaign(params.slug);
-  const [fonts, cover] = await Promise.all([loadOgFonts(), loadCoverPhoto(campaign?.coverPhoto ?? null)]);
+  const [fonts, cover, logo] = await Promise.all([
+    loadOgFonts(),
+    loadCoverPhoto(campaign?.coverPhoto ?? null),
+    loadOgLogo(),
+  ]);
 
   if (!campaign) {
     return new ImageResponse(
@@ -45,7 +49,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 32, fontWeight: 800 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 11, background: COLORS.primary }} />
+            {logo && <img src={logo} alt="" width={Math.round(44 * OG_LOGO_RATIO)} height={44} />}
             Sisi kwa Sisi
           </div>
 
