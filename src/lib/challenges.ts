@@ -196,11 +196,14 @@ export async function getChallenge(slug: string): Promise<Challenge | undefined>
   return fromRow(row, totals.get(row.id));
 }
 
-// Error codes raised by supabase/challenges.sql, plus our own.
+// Error codes raised by supabase/challenges.sql and supabase/reports.sql, plus our own.
 export type ChallengeError =
   | "not-logged-in"
   | "email-not-confirmed"
   | "campaign_not_found"
+  | "campaign_paused"
+  | "campaign_closed"
+  | "campaign_completed"
   | "no_organiser"
   | "already_hosting"
   | "mgeni_rasmi_taken"
@@ -211,6 +214,9 @@ export type ChallengeError =
 
 const DB_ERRORS = new Set<string>([
   "campaign_not_found",
+  "campaign_paused",
+  "campaign_closed",
+  "campaign_completed",
   "no_organiser",
   "already_hosting",
   "mgeni_rasmi_taken",

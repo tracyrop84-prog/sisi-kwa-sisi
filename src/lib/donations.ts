@@ -57,8 +57,12 @@ export type NewDonation = {
   challengeId?: string | null;
 };
 
-// Raised by the challenge donation check in supabase/challenges.sql.
+// Raised by the challenge donation check in supabase/challenges.sql, and the
+// paused/closed check in supabase/reports.sql.
 export type DonationError =
+  | "campaign_paused"
+  | "campaign_closed"
+  | "campaign_completed"
   | "challenge_not_found"
   | "challenge_not_live"
   | "waiting_for_host"
@@ -67,6 +71,9 @@ export type DonationError =
   | "below_preset";
 
 const DB_ERRORS = new Set<string>([
+  "campaign_paused",
+  "campaign_closed",
+  "campaign_completed",
   "challenge_not_found",
   "challenge_not_live",
   "waiting_for_host",

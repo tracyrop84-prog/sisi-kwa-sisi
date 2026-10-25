@@ -7,6 +7,8 @@ import Countdown from "@/components/Countdown";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
+import ReportLink from "@/components/ReportLink";
+import StatusBanner from "@/components/StatusBanner";
 import ShareButtons from "@/components/ShareButtons";
 import SiteHeader from "@/components/SiteHeader";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
@@ -23,6 +25,7 @@ import {
 } from "@/lib/challenges";
 import { getChallengeDonations } from "@/lib/donations";
 import { formatKES } from "@/lib/format";
+import { hasReported } from "@/lib/reports";
 import { siteUrl } from "@/lib/site";
 import { buildChallengeInvite, buildWhatsAppSummary } from "@/lib/whatsapp";
 
@@ -30,7 +33,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ thanks?: string }>;
+  searchParams: Promise<{ thanks?: string; reported?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -53,14 +56,18 @@ export default async function ChallengePage({ params, searchParams }: Props) {
   const challenge = await getChallenge((await params).slug);
   if (!challenge) notFound();
 
-  const [campaign, donations, user, url, { thanks }] = await Promise.all([
+  const [campaign, donations, user, url, reported, { thanks, reported: justReported }] = await Promise.all([
     getCampaignById(challenge.campaignId),
     getChallengeDonations(challenge.id),
     getCurrentUser(),
     siteUrl(`/c/${challenge.slug}`),
+    hasReported(challenge.campaignId),
     searchParams,
   ]);
   if (!campaign) notFound();
+  // The database refuses donations while the campaign is paused or closed (supabase/reports.sql).
+  // Challenge timers keep running meanwhile.
+  const open = campaign.status === "active";
 
   const now = Date.now();
   const state = challengeState(challenge, now);
@@ -69,7 +76,7 @@ export default async function ChallengePage({ params, searchParams }: Props) {
   const type = CHALLENGE_TYPES[challenge.type];
   const isMgeniRasmi = challenge.type === "mgeni_rasmi";
   const over = state === "ended" || state === "expired" || state === "declined";
-  const hasStickyBar = state === "live" || over;
+  const hasStickyBar = open && (state === "live" || over);
 
   const invite =
     state === "live" &&
@@ -99,6 +106,14 @@ export default async function ChallengePage({ params, searchParams }: Props) {
     <main className={`mx-auto max-w-md px-5 ${hasStickyBar ? "pb-28" : "pb-10"}`}>
       <LiveRefresh campaignId={campaign.id} challengeId={challenge.id} />
       <SiteHeader />
+
+      <StatusBanner campaign={campaign} />
+      {justReported && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Thanks for telling us</p>
+          <p className="mt-1 text-sm text-muted">Our team will review this harambee. Your report is anonymous.</p>
+        </div>
+      )}
 
       {thanks && (
         <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
@@ -139,11 +154,14 @@ export default async function ChallengePage({ params, searchParams }: Props) {
             </StatusMessage>
           )}
 
-          {state === "declined" && (
-            <StatusMessage title="This challenge isn’t running">
-              The organiser didn’t approve it. You can still give to the harambee directly.
-            </StatusMessage>
-          )}
+          {state === "declined" &&
+            (campaign.status === "completed" ? (
+              <StatusMessage title="This challenge didn’t run">The harambee ended before it was approved.</StatusMessage>
+            ) : (
+              <StatusMessage title="This challenge isn’t running">
+                The organiser didn’t approve it. You can still give to the harambee directly.
+              </StatusMessage>
+            ))}
 
           {state === "waiting-for-host" &&
             (isHost ? (
@@ -152,9 +170,11 @@ export default async function ChallengePage({ params, searchParams }: Props) {
                   As Mgeni Rasmi you give first. Your gift starts the {durationLabel(challenge.durationMinutes)}{" "}
                   countdown, then you share the link.
                 </StatusMessage>
-                <div className="mt-4">
-                  <FirstGiftButton slug={challenge.slug} msLeft={hostGiftDeadline(challenge) - now} />
-                </div>
+                {open && (
+                  <div className="mt-4">
+                    <FirstGiftButton slug={challenge.slug} msLeft={hostGiftDeadline(challenge) - now} />
+                  </div>
+                )}
               </>
             ) : (
               <StatusMessage title="Starting soon">
@@ -173,7 +193,7 @@ export default async function ChallengePage({ params, searchParams }: Props) {
                   campaign={campaign}
                 />
               </div>
-              {invite && (
+              {invite && open && (
                 <div className="mt-4 space-y-2">
                   <WhatsAppShareButton text={invite} />
                   <ShareButtons url={url} text={`${challengeTitle(challenge)} for ${campaign.title}`} />
@@ -225,6 +245,10 @@ export default async function ChallengePage({ params, searchParams }: Props) {
             </h2>
             <DonorList donations={donations} />
           </section>
+        )}
+
+        {user?.id !== campaign.organiserId && campaign.status !== "closed" && (
+          <ReportLink campaignSlug={campaign.slug} reported={reported} from={`/c/${challenge.slug}`} />
         )}
       </article>
 

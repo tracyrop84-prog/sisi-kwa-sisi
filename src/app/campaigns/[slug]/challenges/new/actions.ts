@@ -38,6 +38,12 @@ function friendlyError(code: ChallengeError): string {
       return "Another Mgeni Rasmi is already running here. Choose a different type, or try again when it ends.";
     case "campaign_full":
       return "This harambee already has 5 live challenges. Try again when one ends.";
+    case "campaign_paused":
+      return "Donations to this harambee are paused while we review it, so it can’t take new challenges.";
+    case "campaign_closed":
+      return "This harambee has been closed and can’t take challenges.";
+    case "campaign_completed":
+      return "This harambee has ended, so it can’t take new challenges.";
     case "no_organiser":
       return "This harambee can’t take challenges.";
     default:

@@ -22,7 +22,15 @@ export default async function EditUpdatePage({ params }: Props) {
   if (!user.emailConfirmed) redirect(`/check-email?next=${encodeURIComponent(path)}`);
 
   const [campaign, update] = await Promise.all([getCampaign(slug), getUpdate(id)]);
-  if (!campaign || campaign.organiserId !== user.id || !update || update.campaignId !== campaign.id) notFound();
+  if (
+    !campaign ||
+    campaign.organiserId !== user.id ||
+    campaign.status === "closed" ||
+    !update ||
+    update.campaignId !== campaign.id
+  ) {
+    notFound();
+  }
 
   return (
     <main className="mx-auto max-w-md px-5 pb-10">

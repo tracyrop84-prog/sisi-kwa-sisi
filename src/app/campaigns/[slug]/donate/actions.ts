@@ -21,6 +21,19 @@ export type DonateState = {
 
 type Field = "donorName" | "amount" | "message";
 
+function campaignError(code: DonationError): string | null {
+  switch (code) {
+    case "campaign_paused":
+      return "Donations are paused while we review this harambee.";
+    case "campaign_closed":
+      return "This harambee has been closed and no longer takes donations.";
+    case "campaign_completed":
+      return "This harambee has ended, so it no longer takes donations. Thank you for thinking of it!";
+    default:
+      return null;
+  }
+}
+
 function challengeError(code: DonationError, challenge: Challenge): string {
   switch (code) {
     case "challenge_not_live":
@@ -76,7 +89,9 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
     }
     // The money goes to the campaign; challenge_id only records which challenge brought it in.
     const result = await createDonation({ ...donation, campaignId: challenge.campaignId, challengeId: challenge.id });
-    if ("error" in result) return { errors: {}, values, formError: challengeError(result.error, challenge) };
+    if ("error" in result) {
+      return { errors: {}, values, formError: campaignError(result.error) ?? challengeError(result.error, challenge) };
+    }
     redirect(`/c/${challenge.slug}?thanks=1`);
   }
 
@@ -85,6 +100,9 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
     return { errors: {}, values, formError: "We couldn’t find this harambee. It may have been removed." };
   }
 
-  await createDonation({ ...donation, campaignId: campaign.id });
+  const result = await createDonation({ ...donation, campaignId: campaign.id });
+  if ("error" in result) {
+    return { errors: {}, values, formError: campaignError(result.error) ?? "We couldn’t take your donation. Please try again." };
+  }
   redirect(`/campaigns/${campaign.slug}?thanks=1`);
 }

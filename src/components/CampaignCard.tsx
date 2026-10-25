@@ -15,6 +15,16 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {campaign.category} · {campaign.location}
       </p>
+      {campaign.status === "paused" && (
+        <p className="mt-1 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+          Under review · donations paused
+        </p>
+      )}
+      {campaign.status === "completed" && (
+        <p className="mt-1 inline-block rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-muted">
+          Completed · thank you 🙏
+        </p>
+      )}
       <h2 className="mt-1 text-lg font-bold leading-snug">{campaign.title}</h2>
       <div className="mt-3">
         <ProgressBar

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DonateForm from "@/app/campaigns/[slug]/donate/DonateForm";
+import StatusBanner from "@/components/StatusBanner";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentUser } from "@/lib/auth";
 import { getCampaignById } from "@/lib/campaigns";
@@ -42,7 +43,11 @@ export default async function ChallengeDonatePage({ params }: Props) {
         All money goes directly to <span className="font-semibold text-text">{campaign.title}</span>.
       </p>
 
-      {accepting ? (
+      {campaign.status !== "active" ? (
+        <div className="mt-4">
+          <StatusBanner campaign={campaign} />
+        </div>
+      ) : accepting ? (
         <>
           <p className="mt-4 mb-6 rounded-2xl bg-accent/10 p-4 text-sm">
             {firstGift

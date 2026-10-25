@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { setCoverAction } from "@/app/campaigns/[slug]/edit/actions";
 import ErrorMessage from "@/components/ErrorMessage";
 import PhotoPicker from "@/components/PhotoPicker";
+import { CAMPAIGN_DECLARATION } from "@/lib/campaignRules";
 import { CATEGORIES, CATEGORY_INFO } from "@/lib/categories";
 import { uploadPhotos, type PickedPhoto } from "@/lib/uploadPhotos";
 import { createCampaignAction, type FormState } from "./actions";
@@ -122,6 +123,21 @@ export default function CampaignForm({ organiserName }: Props) {
         </p>
         <p className="text-sm text-muted">Shown at the top of the page and when the link is shared.</p>
         <PhotoPicker photos={cover} onChange={setCover} max={1} label="Add a cover photo" disabled={busy} />
+      </div>
+
+      <div>
+        <label className="flex items-start gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-black/15">
+          <input
+            type="checkbox"
+            name="declaration"
+            defaultChecked={values.declaration === "on"}
+            aria-invalid={errors.declaration ? true : undefined}
+            aria-describedby={errors.declaration ? "declaration-error" : undefined}
+            className="mt-1 h-4 w-4 shrink-0 accent-accent"
+          />
+          <span className="text-sm">{CAMPAIGN_DECLARATION}</span>
+        </label>
+        {errors.declaration && <ErrorMessage id="declaration-error">{errors.declaration}</ErrorMessage>}
       </div>
 
       <button

@@ -13,9 +13,11 @@ export type UpdateFormState = { errors: UpdateErrors; formError?: string };
 
 const NOT_ORGANISER = "Only the organiser can post updates. Please log in again.";
 
+// Closed campaigns can't take, change or lose updates; the database refuses too.
 async function organiserCampaign(slug: string): Promise<Campaign | null> {
   const [user, campaign] = await Promise.all([getCurrentUser(), getCampaign(slug)]);
   if (!user || !campaign || campaign.organiserId !== user.id || !user.emailConfirmed) return null;
+  if (campaign.status === "closed") return null;
   return campaign;
 }
 
