@@ -31,6 +31,7 @@ export const DOCUMENT_SUGGESTIONS: Record<Category, string[]> = {
   Farming: ["Supplier quotations", "Letter from the chief or farmers’ group"],
   Housing: ["Building plans", "Contractor’s quotation"],
   "Sports & Youth": ["Tournament invitation or budget", "Letter from the club or school"],
+  Talent: ["Invitation to perform or compete", "Quotation for equipment, studio time or training"],
   "Elder Care": ["Medical report", "Care home or hospital invoice"],
   Other: ["Any document that shows what the money is for"],
 };

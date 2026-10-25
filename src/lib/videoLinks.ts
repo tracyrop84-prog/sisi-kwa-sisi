@@ -1,10 +1,5 @@
-import type { Category } from "@/lib/categories";
-
-// Links to the original video on viral campaigns. Keep in sync with
-// campaigns_viral_video_url_check in supabase/beneficiary_verification.sql.
-
-// Only these campaigns can link a viral video.
-export const VIRAL_CATEGORY = "Business & Empowerment" satisfies Category;
+// Links to the original video on viral campaigns, in any category. Keep in
+// sync with campaigns_viral_video_url_check in supabase/beneficiary_verification.sql.
 
 const PLATFORMS = [
   { name: "TikTok", hosts: ["tiktok.com"], subdomains: true },

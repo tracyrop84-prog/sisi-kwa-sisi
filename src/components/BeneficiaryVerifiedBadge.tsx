@@ -13,7 +13,7 @@ export default function BeneficiaryVerifiedBadge({ name, small = false }: { name
         <circle cx="10" cy="10" r="8" fill="currentColor" />
         <path d="m6.5 10.2 2.3 2.3 4.7-4.9" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      {small ? "Verified" : <>Verified · Confirmed by {name ?? "their guardian"}</>}
+      {small ? "Verified" : <>Verified · Confirmed by {name ?? "guardian"}</>}
     </span>
   );
 }

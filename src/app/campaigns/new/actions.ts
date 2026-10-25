@@ -14,7 +14,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { checkBeneficiaryPhone, sendBeneficiaryLink, type BeneficiaryPhoneError } from "@/lib/beneficiaries";
 import { CATEGORIES, createCampaign, type Category, type CreateError } from "@/lib/campaigns";
 import { normaliseKenyanPhone } from "@/lib/phone";
-import { normaliseVideoUrl, VIRAL_CATEGORY } from "@/lib/videoLinks";
+import { normaliseVideoUrl } from "@/lib/videoLinks";
 
 export type FormState = {
   errors: Partial<Record<Field, string>>;
@@ -107,7 +107,7 @@ export async function createCampaignAction(
 
   // Viral and under-18 harambees always need confirmation (for under-18s, by a
   // parent or guardian); others can ask for it.
-  const viral = values.viral === "on" && values.category === VIRAL_CATEGORY;
+  const viral = values.viral === "on";
   const minor = values.minor === "on";
   const videoUrl = viral ? normaliseVideoUrl(values.videoUrl) : null;
   if (viral && !videoUrl) errors.videoUrl = "Paste the link to the video on TikTok, Facebook, Instagram or YouTube.";

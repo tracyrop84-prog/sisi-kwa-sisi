@@ -7,7 +7,7 @@ import ErrorMessage from "@/components/ErrorMessage";
 import PhotoPicker from "@/components/PhotoPicker";
 import { APPROVAL_GOAL, CAMPAIGN_DECLARATION, MINOR_PHOTO_CONSENT } from "@/lib/campaignRules";
 import { CATEGORIES, CATEGORY_INFO } from "@/lib/categories";
-import { MAX_VIDEO_URL, VIRAL_CATEGORY } from "@/lib/videoLinks";
+import { MAX_VIDEO_URL } from "@/lib/videoLinks";
 import { uploadPhotos, type PickedPhoto } from "@/lib/uploadPhotos";
 import { createCampaignAction, type FormState } from "./actions";
 
@@ -31,13 +31,11 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
   const [cover, setCover] = useState<PickedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   // Which optional sections show. Kept here, so they survive a failed submit.
-  const [category, setCategory] = useState(values.category);
   const [viral, setViral] = useState(values.viral === "on");
   const [askToConfirm, setAskToConfirm] = useState(values.confirmBeneficiary === "on");
   const [minor, setMinor] = useState(values.minor === "on");
-  const viralShown = category === VIRAL_CATEGORY && viral;
   // Under-18s and viral harambees always need confirmation; others can ask for it.
-  const confirming = minor || viralShown || askToConfirm;
+  const confirming = minor || viral || askToConfirm;
 
   // The campaign exists now, so its cover photo can go in its folder.
   useEffect(() => {
@@ -78,10 +76,7 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
         {errors.title && <ErrorMessage id="title-error">{errors.title}</ErrorMessage>}
       </div>
 
-      <fieldset
-        aria-describedby={errors.category ? "category-error" : undefined}
-        onChange={(e) => e.target instanceof HTMLInputElement && setCategory(e.target.value)}
-      >
+      <fieldset aria-describedby={errors.category ? "category-error" : undefined}>
         <legend className="font-semibold">Category</legend>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {CATEGORIES.map((c) => (
@@ -98,40 +93,38 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
         {errors.category && <ErrorMessage id="category-error">{errors.category}</ErrorMessage>}
       </fieldset>
 
-      {category === VIRAL_CATEGORY && (
-        <div className="rounded-xl bg-surface p-4 ring-1 ring-black/15">
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              name="viral"
-              checked={viral}
-              onChange={(e) => setViral(e.target.checked)}
-              className="mt-1 h-4 w-4 shrink-0 accent-accent"
-            />
-            <span>
-              <span className="block font-semibold">This person went viral</span>
-              <span className="block text-sm text-muted">
-                Link the original video. We’ll ask them to confirm by SMS before the harambee goes live.
-              </span>
+      <div className="rounded-xl bg-surface p-4 ring-1 ring-black/15">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="viral"
+            checked={viral}
+            onChange={(e) => setViral(e.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-accent"
+          />
+          <span>
+            <span className="block font-semibold">This person went viral</span>
+            <span className="block text-sm text-muted">
+              Link the original video. We’ll ask them to confirm by SMS before the harambee goes live.
             </span>
-          </label>
-          {viral && (
-            <div className="mt-4">
-              <label htmlFor="videoUrl" className="font-semibold">Link to the original video</label>
-              <p className="text-sm text-muted">TikTok, Facebook, Instagram or YouTube.</p>
-              <input
-                {...field("videoUrl")}
-                className={inputClass}
-                type="url"
-                inputMode="url"
-                placeholder="https://www.tiktok.com/@…"
-                maxLength={MAX_VIDEO_URL}
-              />
-              {errors.videoUrl && <ErrorMessage id="videoUrl-error">{errors.videoUrl}</ErrorMessage>}
-            </div>
-          )}
-        </div>
-      )}
+          </span>
+        </label>
+        {viral && (
+          <div className="mt-4">
+            <label htmlFor="videoUrl" className="font-semibold">Link to the original video</label>
+            <p className="text-sm text-muted">TikTok, Facebook, Instagram or YouTube.</p>
+            <input
+              {...field("videoUrl")}
+              className={inputClass}
+              type="url"
+              inputMode="url"
+              placeholder="https://www.tiktok.com/@…"
+              maxLength={MAX_VIDEO_URL}
+            />
+            {errors.videoUrl && <ErrorMessage id="videoUrl-error">{errors.videoUrl}</ErrorMessage>}
+          </div>
+        )}
+      </div>
 
       <div>
         <label htmlFor="goal" className="font-semibold">Goal (KES)</label>
@@ -197,7 +190,7 @@ export default function CampaignForm({ organiserName, maxGoal }: Props) {
               It can be you if you’re the parent or guardian.
             </p>
           </>
-        ) : viralShown ? (
+        ) : viral ? (
           <>
             <p className="font-semibold">Who went viral?</p>
             <p className="text-sm text-muted">

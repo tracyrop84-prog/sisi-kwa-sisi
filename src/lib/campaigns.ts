@@ -53,7 +53,7 @@ export type Campaign = {
   changesRequestedReason: string | null; // shown to the organiser
   documentsCheckedAt: string | null; // shows the "Documents checked" badge
   lastEditedAt: string | null; // title, story or location changed after the first donation
-  viralVideoUrl: string | null; // Business & Empowerment only, see src/lib/videoLinks.ts
+  viralVideoUrl: string | null; // set on viral campaigns, see src/lib/videoLinks.ts
   beneficiaryConfirmation: boolean; // waits for, or got, the beneficiary's confirmation
   beneficiaryIsMinor: boolean; // under 18: a parent or guardian confirms, and admins always approve
   beneficiaryConfirmedName: string | null; // for the "Verified" badge; null for under-18s, whose guardian stays private

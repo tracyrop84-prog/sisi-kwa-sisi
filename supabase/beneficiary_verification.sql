@@ -3,7 +3,7 @@
 --
 -- - Viral campaigns: Business & Empowerment campaigns can link the original
 --   video (TikTok, Facebook, Instagram or YouTube). Set when creating, never
---   changed afterwards.
+--   changed afterwards. (viral_any_category.sql then allows any category.)
 -- - Beneficiary confirmation: required for viral campaigns, optional for any
 --   other. The campaign waits in status 'awaiting_beneficiary' (not public, no
 --   donations, details locked) until the beneficiary opens /confirm/[token]
