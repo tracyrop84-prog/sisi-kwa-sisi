@@ -1,19 +1,11 @@
 import "server-only";
+import type { Category } from "@/lib/categories";
 import { createClient } from "@/lib/supabase/server";
 
 // Campaigns live in the Supabase "campaigns" table (see supabase/campaigns.sql).
 // Everything that reads or writes campaigns goes through this file.
 
-export const CATEGORIES = [
-  "Medical",
-  "Education",
-  "Funeral",
-  "Emergency",
-  "Community",
-  "Other",
-] as const;
-
-export type Category = (typeof CATEGORIES)[number];
+export { CATEGORIES, type Category } from "@/lib/categories";
 
 export type Campaign = {
   id: string;
@@ -28,11 +20,12 @@ export type Campaign = {
   donorCount: number;
   story: string;
   organiserId: string | null; // null for seeded sample campaigns
+  coverPhoto: string | null; // Storage path, see src/lib/photos.ts
   createdAt: string;
 };
 
 const COLUMNS =
-  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, created_at";
+  "id, slug, title, category, organiser, beneficiary, location, goal, raised, donor_count, story, organiser_id, cover_photo, created_at";
 
 type Row = {
   id: string;
@@ -47,11 +40,12 @@ type Row = {
   donor_count: number;
   story: string;
   organiser_id: string | null;
+  cover_photo: string | null;
   created_at: string;
 };
 
-function fromRow({ donor_count, organiser_id, created_at, ...rest }: Row): Campaign {
-  return { ...rest, donorCount: donor_count, organiserId: organiser_id, createdAt: created_at };
+function fromRow({ donor_count, organiser_id, cover_photo, created_at, ...rest }: Row): Campaign {
+  return { ...rest, donorCount: donor_count, organiserId: organiser_id, coverPhoto: cover_photo, createdAt: created_at };
 }
 
 export async function getCampaigns(): Promise<Campaign[]> {
@@ -108,6 +102,24 @@ export async function createCampaign(input: NewCampaign): Promise<CreateResult> 
     .single();
   if (error) throw error;
   return { campaign: fromRow(data as Row) };
+}
+
+export type CampaignDetails = Pick<Campaign, "title" | "story" | "location" | "coverPhoto">;
+
+// Row-level security only lets the organiser change their own campaign.
+export async function updateCampaignDetails(id: string, details: CampaignDetails) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("campaigns")
+    .update({ title: details.title, story: details.story, location: details.location, cover_photo: details.coverPhoto })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setCampaignCover(id: string, coverPhoto: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("campaigns").update({ cover_photo: coverPhoto }).eq("id", id);
+  if (error) throw error;
 }
 
 async function uniqueSlug(title: string): Promise<string> {

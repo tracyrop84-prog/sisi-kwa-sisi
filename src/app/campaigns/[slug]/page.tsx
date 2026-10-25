@@ -6,8 +6,10 @@ import CopyWhatsAppButton from "@/components/CopyWhatsAppButton";
 import DonorList from "@/components/DonorList";
 import FirstGiftButton from "@/components/FirstGiftButton";
 import LiveRefresh from "@/components/LiveRefresh";
+import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
 import SiteHeader from "@/components/SiteHeader";
+import UpdatesTimeline from "@/components/UpdatesTimeline";
 import WhatsAppShareButton from "@/components/WhatsAppShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getCampaign } from "@/lib/campaigns";
@@ -21,13 +23,14 @@ import {
 import { formatKES, formatTimeLeft } from "@/lib/format";
 import { getDonations } from "@/lib/donations";
 import { siteUrl } from "@/lib/site";
+import { getGiftCount, getUpdates } from "@/lib/updates";
 import { buildWhatsAppSummary } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ thanks?: string; challenge?: string }>;
+  searchParams: Promise<{ thanks?: string; challenge?: string; update?: string; edited?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -39,13 +42,16 @@ export default async function CampaignPage({ params, searchParams }: Props) {
   const campaign = await getCampaign((await params).slug);
   if (!campaign) notFound();
 
-  const [donations, url, user, challenges, { thanks, challenge }] = await Promise.all([
-    getDonations(campaign.id),
-    siteUrl(`/campaigns/${campaign.slug}`),
-    getCurrentUser(),
-    getCampaignChallenges(campaign.id),
-    searchParams,
-  ]);
+  const [donations, url, user, challenges, updates, giftCount, { thanks, challenge, update, edited }] =
+    await Promise.all([
+      getDonations(campaign.id),
+      siteUrl(`/campaigns/${campaign.slug}`),
+      getCurrentUser(),
+      getCampaignChallenges(campaign.id),
+      getUpdates(campaign.id),
+      getGiftCount(campaign.id),
+      searchParams,
+    ]);
 
   const now = Date.now();
   const isOrganiser = !!user && campaign.organiserId === user.id;
@@ -94,6 +100,23 @@ export default async function CampaignPage({ params, searchParams }: Props) {
         </div>
       )}
 
+      {update === "posted" && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Update posted!</p>
+          <p className="mt-1 text-sm text-muted">Share it on WhatsApp so donors see the news.</p>
+        </div>
+      )}
+      {update === "deleted" && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Update deleted</p>
+        </div>
+      )}
+      {edited && (
+        <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
+          <p className="font-bold">Changes saved</p>
+        </div>
+      )}
+
       {challenge === "pending" && (
         <div role="status" className="mt-2 rounded-2xl bg-accent/10 p-4">
           <p className="font-bold">Challenge sent!</p>
@@ -109,6 +132,14 @@ export default async function CampaignPage({ params, searchParams }: Props) {
       )}
 
       <article className="pt-4">
+        {campaign.coverPhoto && (
+          <Photo
+            path={campaign.coverPhoto}
+            alt={`Cover photo for ${campaign.title}`}
+            eager
+            className="mb-4 aspect-video w-full rounded-2xl"
+          />
+        )}
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
           {campaign.category} · {campaign.location}
         </p>
@@ -128,6 +159,13 @@ export default async function CampaignPage({ params, searchParams }: Props) {
             donorCount={campaign.donorCount}
             size="lg"
           />
+          {/* Gifts in kind are counted on their own; their value never adds to the cash raised. */}
+          {giftCount > 0 && (
+            <p className="mt-1 text-sm font-semibold">
+              <span aria-hidden="true">🎁</span> {giftCount.toLocaleString("en-KE")}{" "}
+              {giftCount === 1 ? "gift" : "gifts"} received
+            </p>
+          )}
           <div className="mt-4 space-y-2">
             <WhatsAppShareButton text={whatsAppUpdate} />
             <CopyWhatsAppButton text={whatsAppUpdate} />
@@ -153,6 +191,23 @@ export default async function CampaignPage({ params, searchParams }: Props) {
                 <FirstGiftButton slug={mine.slug} msLeft={hostGiftDeadline(mine) - now} />
               </div>
             )}
+          </div>
+        )}
+
+        {isOrganiser && (
+          <div className="mt-4 flex gap-2">
+            <Link
+              href={`/campaigns/${campaign.slug}/updates/new`}
+              className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-accent ring-1 ring-accent/40 active:scale-[0.99]"
+            >
+              Post update
+            </Link>
+            <Link
+              href={`/campaigns/${campaign.slug}/edit`}
+              className="flex-1 rounded-xl bg-surface px-4 py-3 text-center font-bold text-text ring-1 ring-black/15 active:scale-[0.99]"
+            >
+              Edit
+            </Link>
           </div>
         )}
 
@@ -192,6 +247,29 @@ export default async function CampaignPage({ params, searchParams }: Props) {
               <span className="font-medium text-muted">({liveChallenges.length})</span>
             </h2>
             <ChallengeLeaderboard live={liveChallenges} past={pastChallenges} now={now} />
+          </section>
+        )}
+
+        {(updates.length > 0 || isOrganiser) && (
+          <section className="mt-6">
+            <h2 className="text-lg font-bold">
+              Updates <span className="font-medium text-muted">({updates.length})</span>
+            </h2>
+            {updates.length > 0 ? (
+              <UpdatesTimeline
+                updates={updates}
+                campaignTitle={campaign.title}
+                campaignCategory={campaign.category}
+                campaignSlug={campaign.slug}
+                campaignUrl={url}
+                isOrganiser={isOrganiser}
+              />
+            ) : (
+              <p className="mt-2 text-muted">
+                No updates yet. Post one to keep donors in the loop, like gifts received or{" "}
+                {campaign.category === "Medical" ? "recovery news" : "progress"}.
+              </p>
+            )}
           </section>
         )}
 

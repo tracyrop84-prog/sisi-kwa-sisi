@@ -1,13 +1,16 @@
 // Opens WhatsApp (app on phones, web on desktop) with a ready-to-send message.
-export default function WhatsAppShareButton({ text }: { text: string }) {
+// The small version sits inside update cards.
+export default function WhatsAppShareButton({ text, small = false }: { text: string; small?: boolean }) {
   return (
     <a
       href={`https://wa.me/?text=${encodeURIComponent(text)}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface px-6 py-3 font-bold text-text ring-1 ring-black/15 active:scale-[0.99]"
+      className={`flex items-center justify-center gap-2 rounded-xl bg-surface font-bold text-text ring-1 ring-black/15 active:scale-[0.99] ${
+        small ? "px-3 py-2 text-sm" : "w-full px-6 py-3"
+      }`}
     >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+      <svg viewBox="0 0 24 24" className={small ? "h-4 w-4" : "h-5 w-5"} aria-hidden="true">
         <path
           d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"
           fill="none"

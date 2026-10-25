@@ -5,7 +5,11 @@ create table public.campaigns (
   id           uuid primary key default gen_random_uuid(),
   slug         text not null unique,
   title        text not null check (char_length(title) between 5 and 100),
-  category     text not null check (category in ('Medical', 'Education', 'Funeral', 'Emergency', 'Community', 'Other')),
+  -- Keep in sync with src/lib/categories.ts.
+  category     text not null constraint campaigns_category_check check (category in (
+                 'Medical', 'Education', 'School Fees', 'Funeral', 'Wedding', 'Emergency', 'Community',
+                 'Church & Faith', 'Business & Empowerment', 'Farming', 'Housing', 'Sports & Youth',
+                 'Elder Care', 'Other')),
   organiser    text not null,  -- display name shown on the page
   beneficiary  text not null,
   location     text not null,

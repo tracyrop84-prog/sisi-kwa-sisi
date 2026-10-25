@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Photo from "@/components/Photo";
 import ProgressBar from "@/components/ProgressBar";
 import type { Campaign } from "@/lib/campaigns";
 
@@ -8,6 +9,9 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
       href={`/campaigns/${campaign.slug}`}
       className="block rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5 active:scale-[0.99]"
     >
+      {campaign.coverPhoto && (
+        <Photo path={campaign.coverPhoto} alt="" className="-mx-4 -mt-4 mb-3 block aspect-video w-[calc(100%+2rem)] max-w-none rounded-t-2xl" />
+      )}
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {campaign.category} · {campaign.location}
       </p>
