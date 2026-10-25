@@ -105,13 +105,14 @@ export async function createCampaignAction(
   const goalProblem = goalError(goal);
   if (goalProblem) errors.goal = goalProblem;
 
-  // Viral and under-18 harambees always need confirmation (for under-18s, by a
-  // parent or guardian); others can ask for it.
+  // Viral harambees always need confirmation; others can ask for it. For
+  // under-18s, a parent or guardian confirms.
   const viral = values.viral === "on";
-  const minor = values.minor === "on";
   const videoUrl = viral ? normaliseVideoUrl(values.videoUrl) : null;
   if (viral && !videoUrl) errors.videoUrl = "Paste the link to the video on TikTok, Facebook, Instagram or YouTube.";
-  const confirming = viral || minor || values.confirmBeneficiary === "on";
+  const confirming = viral || values.confirmBeneficiary === "on";
+  // The form only offers under 18 once there's a confirmation.
+  const minor = confirming && values.minor === "on";
   const beneficiaryPhone = confirming ? normaliseKenyanPhone(values.beneficiaryPhone) : null;
   if (confirming) {
     if (values.beneficiaryName.length < 2 || values.beneficiaryName.length > 100) {

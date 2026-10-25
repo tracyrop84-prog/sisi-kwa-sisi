@@ -135,15 +135,17 @@ function fromRow({
   };
 }
 
-// Browse shows running campaigns (active and paused) and completed ones
-// separately. Closed campaigns drop out, but their pages still open from old links.
-export async function getCampaigns(show: "running" | "completed" = "running"): Promise<Campaign[]> {
+// Browse shows active campaigns and completed ones separately. Paused and
+// closed campaigns drop out, but their pages still open from links, with their banner.
+// limit is for the home page's featured harambees (the newest ones).
+export async function getCampaigns(show: "active" | "completed" = "active", limit?: number): Promise<Campaign[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const query = supabase
     .from("campaigns")
     .select(COLUMNS)
-    .in("status", show === "completed" ? ["completed"] : ["active", "paused"])
+    .eq("status", show === "completed" ? "completed" : "active")
     .order(show === "completed" ? "completed_at" : "created_at", { ascending: false });
+  const { data, error } = await (limit ? query.limit(limit) : query);
   if (error) throw error;
   return (data as Row[]).map(fromRow);
 }

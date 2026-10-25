@@ -1,4 +1,4 @@
-import { formatKES, formatTimeLeft, percentRaised } from "@/lib/format";
+import { formatKES, formatPercent, formatTimeLeft } from "@/lib/format";
 import type { Category } from "@/lib/categories";
 import { RECOVERY_STATUSES, updateEmoji, updateLabel, type RecoveryStatus, type UpdateType } from "@/lib/updateTypes";
 
@@ -37,7 +37,7 @@ export function buildWhatsAppSummary({
     `*${plain(title)}*`,
     goal === null
       ? `*${formatKES(raised)} raised*`
-      : `*${formatKES(raised)} raised of ${formatKES(goal)} (${percentRaised(raised, goal)}%)*`,
+      : `*${formatKES(raised)} raised of ${formatKES(goal)} (${formatPercent(raised, goal)})*`,
     `${donorCount.toLocaleString("en-KE")} ${donorCount === 1 ? "donor" : "donors"}`,
     "",
   ];

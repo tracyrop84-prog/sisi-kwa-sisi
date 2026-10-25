@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${jakarta.variable} font-sans antialiased`}>
+      <body className={`${jakarta.variable} overflow-x-clip font-sans antialiased`}>
         {children}
       </body>
     </html>

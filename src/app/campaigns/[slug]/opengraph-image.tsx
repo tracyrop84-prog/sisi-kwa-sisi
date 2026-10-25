@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getCampaign } from "@/lib/campaigns";
-import { formatKES, percentRaised } from "@/lib/format";
+import { formatKES, formatPercent, percentRaised } from "@/lib/format";
 import { clip, loadCoverPhoto, loadOgFonts, loadOgLogo, OG_COLORS as COLORS, OG_LOGO_RATIO, OG_SIZE } from "@/lib/og";
 
 // The preview card WhatsApp, Facebook and X show when a campaign link is shared.
@@ -86,7 +86,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
               <div style={{ width: `${percent}%`, height: "100%", background: COLORS.accent }} />
             </div>
             <div style={{ marginTop: 14, fontSize: 26, fontWeight: 500, color: COLORS.muted }}>
-              {`${percent}% · ${donors}`}
+              {`${formatPercent(campaign.raised, campaign.goal)} · ${donors}`}
             </div>
           </div>
         </div>

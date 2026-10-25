@@ -1,4 +1,4 @@
-import { formatKES, percentRaised } from "@/lib/format";
+import { formatKES, formatPercent, percentRaised } from "@/lib/format";
 
 type Props = {
   raised: number;
@@ -9,6 +9,9 @@ type Props = {
 
 export default function ProgressBar({ raised, goal, donorCount, size = "sm" }: Props) {
   const percent = percentRaised(raised, goal);
+  const label = formatPercent(raised, goal);
+  // A sliver for the first gifts, so the bar doesn't look empty.
+  const width = percent === 0 && raised > 0 ? 1 : percent;
   const large = size === "lg";
 
   return (
@@ -25,12 +28,12 @@ export default function ProgressBar({ raised, goal, donorCount, size = "sm" }: P
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${percent}% raised`}
+        aria-label={`${label} raised`}
       >
-        <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${width}%` }} />
       </div>
       <p className="mt-2 text-sm text-muted">
-        {percent}% · {donorCount.toLocaleString("en-KE")}{" "}
+        {label} · {donorCount.toLocaleString("en-KE")}{" "}
         {donorCount === 1 ? "donor" : "donors"}
       </p>
     </div>

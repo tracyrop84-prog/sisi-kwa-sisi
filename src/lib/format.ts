@@ -7,6 +7,13 @@ export function percentRaised(raised: number, goal: number): number {
   return Math.min(100, Math.round((raised / goal) * 100));
 }
 
+// "42%", or "<1%" once something has been raised but it rounds to 0%, so the
+// first gifts never look like nothing.
+export function formatPercent(raised: number, goal: number): string {
+  const percent = percentRaised(raised, goal);
+  return percent === 0 && raised > 0 ? "<1%" : `${percent}%`;
+}
+
 const rtf = new Intl.RelativeTimeFormat("en-KE", { numeric: "auto" });
 
 // "3 days ago", "1 hour ago", "just now"
